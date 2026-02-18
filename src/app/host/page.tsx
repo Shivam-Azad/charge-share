@@ -1,212 +1,258 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useMockAuth } from '@/components/AuthProvider';
-import PayoutModal from '@/components/PayoutModal';
-
-const RECENT_PAYOUTS = [
-  { id: 1, car: 'Tesla Model 3', energy: '42.5 kWh', amount: '+₹850.00', status: 'Completed' },
-  { id: 2, car: 'Tata Nexon EV', energy: '18.2 kWh', amount: '+₹320.00', status: 'Completed' },
-  { id: 3, car: 'MG ZS EV', energy: '31.0 kWh', amount: '+₹540.00', status: 'Completed' },
-];
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export default function HostDashboard() {
-  // Use user instead of session
-  const { user, login } = useMockAuth();
+  const supabase = createClient();
+  const router = useRouter();
   
-  const [isOnline, setIsOnline] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [myChargers, setMyChargers] = useState<any[]>([]);
+  
   const [newCharger, setNewCharger] = useState({
-    name: "My Home Charger",
+    name: "",
     connector: "Type 2",
+    customConnector: "",
+    capacity: "7.4",
     price: "12"
   });
 
-  // Access Denied Check (Replacing status/session check)
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#050a14] flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-3xl font-black italic uppercase mb-4 text-white">Access Denied</h2>
-        <p className="text-zinc-500 mb-8 uppercase text-[10px] tracking-widest">Verified Host Credentials Required</p>
-        <button 
-          onClick={() => login()}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-full font-black italic uppercase transition-all shadow-lg shadow-blue-600/20"
-        >
-          Initialize Login
-        </button>
-      </div>
-    );
-  }
+  const [photos, setPhotos] = useState<{ [key: string]: File | null }>({
+    charger: null,
+    plug: null,
+    parking: null
+  });
 
-  const handleRegister = () => {
-    if (!("geolocation" in navigator)) {
-      alert("GPS required to verify host location.");
-      return;
+  const fetchMyChargers = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('chargers')
+      .select('*')
+      .eq('owner_id', userId);
+    
+    if (error) console.error("Error fetching:", error.message);
+    if (data) setMyChargers(data);
+  }, [supabase]);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+      } else {
+        setUser(user);
+        fetchMyChargers(user.id);
+      }
+    };
+    checkUser();
+  }, [router, supabase, fetchMyChargers]);
+
+  const toggleVisibility = async (chargerId: number, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from('chargers')
+      .update({ is_online: !currentStatus })
+      .eq('id', chargerId);
+    
+    if (!error) {
+      setMyChargers(prev => prev.map(c => 
+        c.id === chargerId ? { ...c, is_online: !currentStatus } : c
+      ));
     }
-
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const hostedStation = {
-        ...newCharger,
-        id: `host-${Date.now()}`,
-        hostId: user.id, // Updated from session
-        hostEmail: user.email, // Updated from session
-        location: [pos.coords.latitude, pos.coords.longitude],
-        type: 'private',
-        address: "Private Residence, Chandigarh",
-        status: "available",
-        timestamp: new Date().toISOString()
-      };
-
-      const existing = JSON.parse(localStorage.getItem('my_hosted_chargers') || '[]');
-      localStorage.setItem('my_hosted_chargers', JSON.stringify([...existing, hostedStation]));
-      
-      alert(`Success! Charger registered to ${user.name}`); // Updated from session
-      setShowSetup(false);
-    }, (err) => {
-      alert("Location access denied. Please enable GPS to host.");
-    });
   };
 
+  const handleRegister = async () => {
+    if (!photos.charger || !photos.plug || !photos.parking) {
+      return alert("Missing Photos: Please upload all 3 required images.");
+    }
+
+    // Check if browser supports Geolocation
+    if (!navigator.geolocation) {
+      return alert("Geolocation is not supported by your browser.");
+    }
+
+    setLoading(true);
+
+    // FETCHING LOCATION AUTOMATICALLY
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+
+          const uploadPhoto = async (file: File, path: string) => {
+            const fileName = `${Date.now()}-${file.name}`;
+            const { data, error } = await supabase.storage
+              .from('charger-images')
+              .upload(`${path}/${fileName}`, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('charger-images').getPublicUrl(data.path);
+            return urlData.publicUrl;
+          };
+
+          const [cUrl, pUrl, pkUrl] = await Promise.all([
+            uploadPhoto(photos.charger!, 'units'),
+            uploadPhoto(photos.plug!, 'plugs'),
+            uploadPhoto(photos.parking!, 'parking')
+          ]);
+
+          const finalType = newCharger.connector === "Other" ? newCharger.customConnector : newCharger.connector;
+
+          const { error } = await supabase.from('chargers').insert({
+            owner_id: user.id,
+            name: newCharger.name || "Home Station",
+            charger_type: finalType,
+            capacity_kwh: parseFloat(newCharger.capacity),
+            price_per_kwh: parseFloat(newCharger.price),
+            charger_photo_url: cUrl,
+            plug_photo_url: pUrl,
+            parking_photo_url: pkUrl,
+            latitude: latitude, // AUTOMATICALLY FETCHED
+            longitude: longitude, // AUTOMATICALLY FETCHED
+            is_online: true
+          });
+
+          if (error) throw error;
+          alert(`Success! Charger registered at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          setShowSetup(false);
+          fetchMyChargers(user.id);
+        } catch (err: any) {
+          alert("Registration Error: " + err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (err) => {
+        setLoading(false);
+        alert("Location Error: Please enable GPS/Location services to register a charger.");
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  if (!user) return <div className="min-h-screen bg-[#050a14]" />;
+
   return (
-    <main className="min-h-screen bg-[#050a14] text-white p-6 pb-32 font-sans overflow-x-hidden">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8 pt-4">
+    <main className="min-h-screen bg-[#050a14] text-white p-6 pb-32">
+      <div className="flex justify-between items-center mb-10 pt-4">
         <div>
-          <h1 className="text-2xl font-black italic uppercase tracking-tighter">Host Mode</h1>
-          <p className="text-blue-500 text-[9px] font-bold tracking-[0.3em] uppercase">
-            {showSetup ? "Charger Setup" : `HOST: ${user.name.split(' ')[0]}`}
-          </p>
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-emerald-500">Host Mode</h1>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">User: {user.email.split('@')[0]}</p>
         </div>
-        <button 
-          onClick={() => setShowSetup(!showSetup)}
-          className="bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full text-blue-400 text-[9px] font-black uppercase tracking-widest"
-        >
-          {showSetup ? "View Dashboard" : "Charger Settings"}
+        <button onClick={() => setShowSetup(!showSetup)} className="bg-emerald-500 text-black px-6 py-2 rounded-full text-xs font-black uppercase tracking-tighter">
+          {showSetup ? "Back to Dashboard" : "+ Add Charger"}
         </button>
       </div>
 
       {!showSetup ? (
-        <>
-          {/* Dashboard Stats */}
-          <div 
-            onClick={() => setShowPayoutModal(true)}
-            className="cursor-pointer group bg-gradient-to-br from-blue-900/40 to-black border border-blue-500/20 rounded-[32px] p-8 mb-6 shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/40"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[80px] rounded-full"></div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">Total Earnings</p>
-                <h2 className="text-5xl font-black italic tracking-tighter mb-8 text-white group-hover:text-blue-400 transition-colors">₹14,242.80</h2>
+        <div className="space-y-8 animate-in fade-in duration-700">
+          <div className="bg-gradient-to-br from-emerald-950/50 to-black border border-emerald-500/20 rounded-[40px] p-10 shadow-2xl">
+            <p className="text-zinc-500 text-[11px] font-black uppercase tracking-[0.2em] mb-4">Total Earnings</p>
+            <h2 className="text-6xl font-black italic tracking-tighter mb-10 text-white">₹0.00</h2>
+            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+              <div className="text-center">
+                <p className="text-zinc-500 text-[10px] font-bold uppercase mb-1">Live Units</p>
+                <p className="text-2xl font-black italic">{myChargers.filter(c => c.is_online).length}</p>
               </div>
-              <div className="bg-blue-500/20 text-blue-400 text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Withdraw</div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
-              <div>
-                <p className="text-zinc-500 text-[9px] font-bold uppercase mb-1">Active Sessions</p>
-                <p className="text-xl font-black italic">12</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-[9px] font-bold uppercase mb-1">Energy Shared</p>
-                <p className="text-xl font-black italic text-blue-400">842 <span className="text-xs uppercase">kWh</span></p>
+              <div className="text-center">
+                <p className="text-zinc-500 text-[10px] font-bold uppercase mb-1">Total Energy</p>
+                <p className="text-2xl font-black italic text-emerald-400">0 <span className="text-xs">kWh</span></p>
               </div>
             </div>
           </div>
 
-          {/* Visibility Toggle */}
-          <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[24px] flex justify-between items-center mb-8">
-            <div>
-              <p className="text-sm font-black uppercase italic leading-none">Charger Visibility</p>
-              <p className={`text-[10px] font-bold uppercase mt-1 ${isOnline ? 'text-blue-400' : 'text-zinc-500'}`}>
-                {isOnline ? 'Online • Public' : 'Offline • Hidden'}
-              </p>
-            </div>
-            <button 
-              onClick={() => setIsOnline(!isOnline)}
-              className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${isOnline ? 'bg-blue-600' : 'bg-zinc-800'}`}
-            >
-              <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 ${isOnline ? 'translate-x-6' : 'translate-x-0'}`}></div>
-            </button>
-          </div>
-
-          {/* Recent Payouts */}
-          <div className="mb-6">
-            <h3 className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-4 ml-2">Recent Payouts</h3>
-            <div className="space-y-3">
-              {RECENT_PAYOUTS.map((payout) => (
-                <div key={payout.id} className="bg-zinc-900/30 border border-zinc-800 p-5 rounded-2xl flex justify-between items-center group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-blue-400">⚡</div>
-                    <div>
-                      <p className="text-sm font-black italic uppercase tracking-tight">{payout.car}</p>
-                      <p className="text-[9px] text-zinc-500 font-bold uppercase">{payout.status} • {payout.energy}</p>
-                    </div>
+          <div className="space-y-4">
+            <h3 className="text-zinc-500 text-[10px] font-black uppercase tracking-widest pl-2">Manage Your Assets</h3>
+            {myChargers.length === 0 ? (
+              <div className="p-16 border-2 border-dashed border-zinc-900 rounded-[40px] text-center text-zinc-700 font-bold uppercase text-[10px]">
+                No active chargers found
+              </div>
+            ) : (
+              myChargers.map((charger) => (
+                <div key={charger.id} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[32px] flex justify-between items-center group hover:border-emerald-500/30 transition-all">
+                  <div>
+                    <p className="font-black italic uppercase text-lg leading-none mb-1">{charger.name}</p>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                      {charger.charger_type} • ₹{charger.price_per_kwh}/kWh • {charger.capacity_kwh}kW
+                    </p>
                   </div>
-                  <p className="text-blue-400 font-black italic">{payout.amount}</p>
+                  <div className="flex items-center gap-4">
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${charger.is_online ? 'text-emerald-500' : 'text-zinc-600'}`}>
+                      {charger.is_online ? "Active" : "Offline"}
+                    </span>
+                    <button 
+                      onClick={() => toggleVisibility(charger.id, charger.is_online)}
+                      className={`w-14 h-7 rounded-full p-1 transition-all ${charger.is_online ? 'bg-emerald-500' : 'bg-zinc-800'}`}
+                    >
+                      <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${charger.is_online ? 'translate-x-7' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </div>
-        </>
+        </div>
       ) : (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[32px]">
-             <label className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest block mb-4">Charger Hardware</label>
-             <select 
-               onChange={(e) => setNewCharger({...newCharger, connector: e.target.value})}
-               className="w-full bg-black border border-zinc-800 rounded-xl p-4 text-sm font-bold uppercase outline-none focus:border-blue-500 transition-colors text-white"
-             >
-               <option value="Type 2">Type 2 (AC - 7.4kW)</option>
-               <option value="CCS2">CCS2 (DC Fast - 25kW+)</option>
-               <option value="15A">15A Socket (Slow)</option>
-             </select>
-          </div>
-          <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[32px]">
-             <label className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest block mb-4">Set Price (₹/kWh)</label>
+        <div className="space-y-6 max-w-lg mx-auto pb-10 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[40px] space-y-4">
+             <p className="text-[10px] font-black uppercase text-emerald-500 px-2">Technical Specs</p>
              <input 
-               type="number" 
-               value={newCharger.price}
-               onChange={(e) => setNewCharger({...newCharger, price: e.target.value})}
-               className="bg-transparent text-3xl font-black italic w-full outline-none text-blue-400"
-             />
+              placeholder="Station Name"
+              className="w-full bg-black/50 border border-zinc-800 p-5 rounded-3xl text-sm outline-none"
+              onChange={(e) => setNewCharger({...newCharger, name: e.target.value})}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <input type="number" placeholder="kW (e.g. 7.4)" className="bg-black/50 border border-zinc-800 p-5 rounded-3xl text-sm outline-none" onChange={(e) => setNewCharger({...newCharger, capacity: e.target.value})}/>
+              <input type="number" placeholder="Price/kWh" className="bg-black/50 border border-zinc-800 p-5 rounded-3xl text-sm text-emerald-500 font-bold outline-none" onChange={(e) => setNewCharger({...newCharger, price: e.target.value})}/>
+            </div>
+            <select className="w-full bg-black/50 border border-zinc-800 p-5 rounded-3xl text-sm outline-none" value={newCharger.connector} onChange={(e) => setNewCharger({...newCharger, connector: e.target.value})}>
+              <option value="Type 2">Type 2 (AC)</option>
+              <option value="CCS2">CCS2 (DC Fast)</option>
+              <option value="Other">Other (Manual Entry)</option>
+            </select>
+            {newCharger.connector === "Other" && (
+              <input placeholder="Enter Plug Type" className="w-full bg-emerald-500/10 border border-emerald-500/50 p-5 rounded-3xl text-sm text-emerald-400 font-bold outline-none" onChange={(e) => setNewCharger({...newCharger, customConnector: e.target.value})}/>
+            )}
           </div>
-          <button onClick={handleRegister} className="w-full bg-blue-600 p-6 rounded-[32px] font-black italic uppercase">Host My Charger</button>
-          <button onClick={() => setShowSetup(false)} className="w-full text-zinc-500 font-black uppercase text-[10px] mt-4">Cancel</button>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[40px] space-y-3">
+            <p className="text-[10px] font-black uppercase text-emerald-500 px-2 mb-2">Required Photos</p>
+            {['charger', 'plug', 'parking'].map((key) => (
+              <label key={key} className="flex flex-col cursor-pointer group">
+                <div className="flex justify-between items-center bg-black/40 border border-zinc-800 p-5 rounded-3xl group-hover:border-zinc-600 transition-all">
+                  <span className="text-[11px] font-black uppercase text-zinc-400 group-hover:text-white transition-colors">
+                    {key} Photo
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-500/60 truncate max-w-[150px]">
+                    {photos[key as keyof typeof photos] ? (photos[key as keyof typeof photos] as File).name : 'Select File +'}
+                  </span>
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={(e) => setPhotos({...photos, [key]: e.target.files?.[0] || null})}
+                />
+              </label>
+            ))}
+          </div>
+
+          <button 
+            onClick={handleRegister} 
+            disabled={loading} 
+            className="w-full bg-emerald-500 p-8 rounded-[40px] font-black italic uppercase text-black shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {loading ? "Capturing Location..." : "Publish & Fetch Location"}
+          </button>
         </div>
       )}
 
-      {showPayoutModal && (
-        <PayoutModal 
-          amount="₹14,242.80" 
-          onClose={() => setShowPayoutModal(false)} 
-          onSuccess={() => {
-            setShowPayoutModal(false);
-            alert("Demo: ₹14,242.80 transferred to your bank!");
-          }} 
-        />
-      )}
-
-      {/* Navigation */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-[#0a0a0a]/80 backdrop-blur-xl border border-zinc-800/50 rounded-full flex items-center justify-around px-6 z-50">
-        <Link href="/" className="text-zinc-500 hover:text-white flex flex-col items-center gap-1">
-          <span className="text-lg">◓</span>
-          <span className="text-[8px] font-bold uppercase">Home</span>
-        </Link>
-        <button className="text-blue-400 flex flex-col items-center gap-1">
-          <div className="w-1 h-1 bg-blue-400 rounded-full mb-1"></div>
-          <span className="text-lg">◇</span>
-          <span className="text-[8px] font-bold uppercase">Host Mode</span>
-        </button>
-        <Link href="/wallet" className="text-zinc-500 hover:text-white flex flex-col items-center gap-1">
-          <span className="text-lg">◍</span>
-          <span className="text-[8px] font-bold uppercase">Wallet</span>
-        </Link>
-        <Link href="/profile" className="text-zinc-500 hover:text-white flex flex-col items-center gap-1">
-          <span className="text-lg">○</span>
-          <span className="text-[8px] font-bold uppercase">Profile</span>
-        </Link>
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-xs h-16 bg-black/80 backdrop-blur-3xl border border-white/5 rounded-full flex items-center justify-around px-8 shadow-2xl z-50">
+        <Link href="/" className="text-zinc-600 text-[10px] font-black uppercase">Home</Link>
+        <button className="text-emerald-400 text-[10px] font-black uppercase">Host</button>
+        <Link href="/profile" className="text-zinc-600 text-[10px] font-black uppercase">Profile</Link>
       </nav>
     </main>
   );

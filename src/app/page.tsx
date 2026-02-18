@@ -7,13 +7,15 @@ import FilterChips from '@/components/ui/FilterChips';
 import ChargerList from '@/components/ui/ChargerList';
 import Link from 'next/link';
 import FinalPaymentModal from '@/components/FinalPaymentModal';
+import { createClient } from '@/utils/supabase/client';
 
 export default function Home() {
   const router = useRouter();
+  const supabase = createClient();
   
-  // --- REAL-WORLD CONSTANTS (Nexon EV 30kWh) ---
-  const BATTERY_CAPACITY = 30; // kWh
-  const MAX_RANGE = 325; // km
+  // --- REAL-WORLD CONSTANTS ---
+  const BATTERY_CAPACITY = 30; 
+  const MAX_RANGE = 325; 
   const START_LEVEL = 21;
   const START_RANGE = 63;
 
@@ -22,13 +24,17 @@ export default function Home() {
   const [liveKwh, setLiveKwh] = useState(0.0);
   const [batteryLevel, setBatteryLevel] = useState(START_LEVEL);
   const [range, setRange] = useState(START_RANGE);
-  
-  // Dynamic Station Info
   const [stationName, setStationName] = useState("Sarah's Driveway");
-  const [stationRate, setStationRate] = useState(11); // Default ₹11 if none found
+  const [stationRate, setStationRate] = useState(11); 
+  
+  // NEARBY & FILTER STATES
+  const [nearbyStations, setNearbyStations] = useState<any[]>([]);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const userVehiclePlug = "Type 2";
 
-  // 1. RECOVERY: Load from LocalStorage
+  // 1. GPS & DATA INITIALIZATION
   useEffect(() => {
+    // A. Recovery from LocalStorage
     const savedStatus = localStorage.getItem('chargingStatus') as any;
     const savedKwh = localStorage.getItem('liveKwh');
     const savedBat = localStorage.getItem('batteryLevel');
@@ -42,9 +48,41 @@ export default function Home() {
     if (savedRange) setRange(parseFloat(savedRange));
     if (savedName) setStationName(savedName);
     if (savedRate) setStationRate(parseInt(savedRate));
+
+    // B. Get User GPS
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      });
+    }
   }, []);
 
-  // 2. PERSISTENCE: Save to LocalStorage
+  // 2. FETCH NEARBY COMPATIBLE CHARGERS
+  useEffect(() => {
+    const fetchNearby = async () => {
+      if (!userLocation) return;
+
+      // Calls the Postgres function we created earlier
+      const { data, error } = await supabase.rpc('nearby_chargers', {
+        user_lat: userLocation.lat,
+        user_long: userLocation.lng,
+        radius_meters: 25000 // 25km radius
+      });
+
+      if (data) {
+        // Filter by vehicle plug type automatically
+        const compatible = data.filter((c: any) => c.charger_type === userVehiclePlug);
+        setNearbyStations(compatible);
+      }
+    };
+
+    fetchNearby();
+  }, [userLocation, supabase]);
+
+  // 3. PERSISTENCE & PHYSICS TICKER (Existing Logic)
   useEffect(() => {
     if (chargingStatus) {
       localStorage.setItem('chargingStatus', chargingStatus);
@@ -54,43 +92,36 @@ export default function Home() {
     }
   }, [chargingStatus, liveKwh, batteryLevel, range]);
 
-  // 3. CHARGING PHYSICS TICKER
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (chargingStatus === 'CHARGING') {
       interval = setInterval(() => {
         setLiveKwh((prev) => {
-          const increment = 0.1; // 0.1 kWh added per tick
+          const increment = 0.1;
           const nextKwh = +(prev + increment).toFixed(2);
-          
-          // REAL PHYSICS: 1kWh = 3.33% of 30kWh battery
           const addedPct = (increment / BATTERY_CAPACITY) * 100;
           const addedRange = (increment / BATTERY_CAPACITY) * MAX_RANGE;
 
           setBatteryLevel((b) => {
             const nextBat = b + addedPct;
             if (nextBat >= 100) {
-              setChargingStatus('PAYING'); // Auto-terminate at 100%
+              setChargingStatus('PAYING');
               return 100;
             }
             return nextBat;
           });
-
           setRange((r) => Math.min(MAX_RANGE, r + addedRange));
-
           return nextKwh;
         });
-      }, 1500); // Ticking every 1.5s for the demo
+      }, 1500);
     }
     return () => clearInterval(interval);
   }, [chargingStatus]);
 
-  // Calculations based on fetched rate
   const currentTotalCost = liveKwh * stationRate;
   const bookingFee = 11;
   const restAmount = Math.max(0, currentTotalCost - bookingFee);
 
-  // RESET FUNCTION FOR DEMO
   const resetDemo = () => {
     localStorage.clear();
     setBatteryLevel(START_LEVEL);
@@ -106,11 +137,11 @@ export default function Home() {
     <main className="min-h-screen bg-black flex flex-col items-center pb-32">
       <div className="w-full max-w-md px-6 pt-12">
         
-        {/* Header & Reset Button */}
+        {/* Header & Reset */}
         <div className="flex justify-between items-start mb-10">
           <div className="w-10" />
           <div className="text-center">
-            <h1 className="text-xl font-black text-white italic uppercase">ChargeShare</h1>
+            <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">NexDrive</h1>
             <p className={`text-[10px] uppercase tracking-[0.3em] mt-1 font-bold ${chargingStatus === 'CHARGING' ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}`}>
               ● {chargingStatus === 'CHARGING' ? 'Charging Live' : 'System Ready'}
             </p>
@@ -125,24 +156,40 @@ export default function Home() {
         <div className="mt-8 min-h-[320px]">
           {chargingStatus === 'IDLE' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h3 className="text-zinc-400 text-[10px] uppercase tracking-widest mb-4 ml-2 font-bold">Nearby Stations</h3>
+              <div className="flex justify-between items-center mb-4 px-2">
+                <h3 className="text-zinc-400 text-[10px] uppercase tracking-widest font-bold">Stations Near You</h3>
+                <span className="text-emerald-500 text-[9px] font-black uppercase">{nearbyStations.length} Compatible</span>
+              </div>
+              
               <FilterChips />
+
               <div className="mt-4">
-                <ChargerList onStart={() => {
-                  localStorage.setItem('currentStationRate', '11'); // Default if starting from list
-                  setStationRate(11);
-                  setChargingStatus('CHARGING');
-                }} />
+                {nearbyStations.length === 0 ? (
+                  <div className="p-10 border border-dashed border-zinc-900 rounded-[32px] text-center">
+                     <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">Scanning 25km radius...</p>
+                  </div>
+                ) : (
+                  /* Pass the auto-fetched nearby stations to the list */
+                  <ChargerList 
+                    items={nearbyStations} 
+                    onStart={(rate: number, name: string) => {
+                      localStorage.setItem('currentStationRate', rate.toString());
+                      localStorage.setItem('currentStationName', name);
+                      setStationRate(rate);
+                      setStationName(name);
+                      setChargingStatus('CHARGING');
+                    }} 
+                  />
+                )}
               </div>
             </div>
           ) : (
+            /* Charging View */
             <div className="bg-zinc-900 border border-emerald-500/30 p-8 rounded-[40px] shadow-[0_0_50px_rgba(16,185,129,0.15)] animate-in zoom-in-95">
               <div className="flex justify-between items-center mb-8">
                 <div>
                   <p className="text-emerald-500 text-[9px] font-black uppercase mb-1">Active Session</p>
-                  <h3 className="text-white text-xl font-black italic uppercase">
-                    {stationName}
-                  </h3>
+                  <h3 className="text-white text-xl font-black italic uppercase">{stationName}</h3>
                   <p className="text-zinc-500 text-[10px] font-bold">RATE: ₹{stationRate}/kWh</p>
                 </div>
                 <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 animate-pulse border border-emerald-500/20">⚡</div>
@@ -187,7 +234,7 @@ export default function Home() {
         />
       )}
 
-      {/* Nav bar */}
+      {/* Navigation Bar (Unchanged) */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
         <Link href="/" className="flex flex-col items-center text-emerald-400 gap-1">
           <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1"></div>
