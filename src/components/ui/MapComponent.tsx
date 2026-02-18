@@ -26,7 +26,7 @@ export default function MapComponent() {
   const [showPayment, setShowPayment] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
 
-  // Define icons INSIDE the component to avoid "window is not defined" during build
+  // Define icons
   const iconPrivate = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -42,15 +42,44 @@ export default function MapComponent() {
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (p) => {
-        const userPos: [number, number] = [p.coords.latitude, p.coords.longitude];
+        const userLat = p.coords.latitude;
+        const userLong = p.coords.longitude;
+        const userPos: [number, number] = [userLat, userLong];
         setPos(userPos);
         
-        const { data } = await supabase.rpc('nearby_chargers', {
-          user_lat: userPos[0],
-          user_long: userPos[1],
-          radius_meters: 25000
+        // 1. Fetch Local Chargers from Supabase RPC
+        const { data: localData } = await supabase.rpc('nearby_chargers', {
+          user_lat: userLat,
+          user_long: userLong,
+          radius_meters: 25000 // 25km
         });
-        if (data) setChargers(data);
+
+        // 2. Fetch Global Chargers from Open Charge Map
+        const ocmKey = process.env.NEXT_PUBLIC_OCM_API_KEY;
+        let ocmData: any[] = [];
+        
+        try {
+          const response = await fetch(
+            `https://api.openchargemap.io/v3/poi/?output=json&latitude=${userLat}&longitude=${userLong}&distance=25&distanceunit=KM&maxresults=50&key=${ocmKey}`
+          );
+          const rawOcm = await response.json();
+          
+          // Map OCM data to your app's charger format
+          ocmData = rawOcm.map((poi: any) => ({
+            id: `ocm-${poi.ID}`,
+            name: poi.AddressInfo.Title,
+            latitude: poi.AddressInfo.Latitude,
+            longitude: poi.AddressInfo.Longitude,
+            charger_type: poi.Connections?.[0]?.ConnectionType?.Title || 'Public Station',
+            price_per_kwh: 12, // Default price for public hubs
+            is_public: true // Force blue icon for OCM data
+          }));
+        } catch (err) {
+          console.error("OCM Fetch Error:", err);
+        }
+
+        // 3. Merge and display
+        setChargers([...(localData || []), ...ocmData]);
       });
     }
   }, [supabase]);
@@ -94,8 +123,12 @@ export default function MapComponent() {
           >
             <Popup>
               <div className="p-2 text-black min-w-[150px]">
-                <h3 className="font-bold text-sm uppercase italic">{charger.name}</h3>
-                <p className="text-[10px] text-zinc-500 mb-2">{charger.charger_type} • ₹{charger.price_per_kwh}/kWh</p>
+                <h3 className="font-bold text-sm uppercase italic leading-tight">
+                  {charger.name}
+                </h3>
+                <p className="text-[10px] text-zinc-500 mb-2">
+                  {charger.charger_type} • ₹{charger.price_per_kwh}/kWh
+                </p>
                 <button 
                   onClick={() => handleBookClick(charger)} 
                   className="w-full bg-emerald-500 text-black py-2 rounded-lg text-[9px] font-black uppercase"
