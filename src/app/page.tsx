@@ -12,10 +12,10 @@ import { createClient } from '@/utils/supabase/client';
 export default function Home() {
   const router = useRouter();
   const supabase = createClient();
-  
+
   // --- REAL-WORLD CONSTANTS ---
-  const BATTERY_CAPACITY = 30; 
-  const MAX_RANGE = 325; 
+  const BATTERY_CAPACITY = 30;
+  const MAX_RANGE = 325;
   const START_LEVEL = 21;
   const START_RANGE = 63;
 
@@ -25,11 +25,11 @@ export default function Home() {
   const [batteryLevel, setBatteryLevel] = useState(START_LEVEL);
   const [range, setRange] = useState(START_RANGE);
   const [stationName, setStationName] = useState("Sarah's Driveway");
-  const [stationRate, setStationRate] = useState(11); 
-  
+  const [stationRate, setStationRate] = useState(11);
+
   // NEARBY & FILTER STATES
   const [nearbyStations, setNearbyStations] = useState<any[]>([]);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const userVehiclePlug = "Type 2";
 
   // 1. GPS & DATA INITIALIZATION
@@ -41,7 +41,7 @@ export default function Home() {
     const savedRange = localStorage.getItem('range');
     const savedName = localStorage.getItem('currentStationName');
     const savedRate = localStorage.getItem('currentStationRate');
-    
+
     setChargingStatus(savedStatus || 'IDLE');
     if (savedKwh) setLiveKwh(parseFloat(savedKwh));
     if (savedBat) setBatteryLevel(parseFloat(savedBat));
@@ -128,7 +128,7 @@ export default function Home() {
     setRange(START_RANGE);
     setLiveKwh(0);
     setChargingStatus('IDLE');
-    window.location.reload(); 
+    window.location.reload();
   };
 
   if (chargingStatus === null) return <div className="min-h-screen bg-black" />;
@@ -136,7 +136,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black flex flex-col items-center pb-32">
       <div className="w-full max-w-md px-6 pt-12">
-        
+
         {/* Header & Reset */}
         <div className="flex justify-between items-start mb-10">
           <div className="w-10" />
@@ -160,25 +160,26 @@ export default function Home() {
                 <h3 className="text-zinc-400 text-[10px] uppercase tracking-widest font-bold">Stations Near You</h3>
                 <span className="text-emerald-500 text-[9px] font-black uppercase">{nearbyStations.length} Compatible</span>
               </div>
-              
+
               <FilterChips />
 
               <div className="mt-4">
                 {nearbyStations.length === 0 ? (
                   <div className="p-10 border border-dashed border-zinc-900 rounded-[32px] text-center">
-                     <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">Scanning 25km radius...</p>
+                    <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">Scanning 25km radius...</p>
                   </div>
                 ) : (
                   /* Pass the auto-fetched nearby stations to the list */
-                  <ChargerList 
-                    items={nearbyStations} 
+                  // Around line 175 in src/app/page.tsx
+                  <ChargerList
+                    items={nearbyStations}
                     onStart={(rate: number, name: string) => {
                       localStorage.setItem('currentStationRate', rate.toString());
                       localStorage.setItem('currentStationName', name);
                       setStationRate(rate);
                       setStationName(name);
                       setChargingStatus('CHARGING');
-                    }} 
+                    }}
                   />
                 )}
               </div>
@@ -206,7 +207,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={() => setChargingStatus('PAYING')}
                 className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all"
               >
@@ -222,7 +223,7 @@ export default function Home() {
       </div>
 
       {chargingStatus === 'PAYING' && (
-        <FinalPaymentModal 
+        <FinalPaymentModal
           totalAmount={currentTotalCost}
           bookingFee={bookingFee}
           restAmount={restAmount}

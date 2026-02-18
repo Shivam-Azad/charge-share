@@ -2,50 +2,59 @@
 import { useState } from 'react';
 import PaymentModal from '../PaymentModal'; 
 
-interface ChargerListProps {
-  onStart?: () => void;
+interface Station {
+  id: number;
+  name: string;
+  charger_type: string;
+  price: string | number;
+  // Add other fields returned by your Supabase RPC if needed
 }
 
-const CHARGERS = [
-  { id: 1, name: "SARAH'S DRIVEWAY", power: "7.2kW", price: "11", dist: "0.4km" },
-  { id: 2, name: "GREEN PARK HUB", power: "22kW", price: "12", dist: "1.2km" },
-  { id: 3, name: "MODERN VILLA #4", power: "11kW", price: "10", dist: "2.1km" },
-];
+interface ChargerListProps {
+  items: Station[]; // FIX: Added items to the interface
+  onStart: (rate: number, name: string) => void;
+}
 
-export default function ChargerList({ onStart }: ChargerListProps) {
+export default function ChargerList({ items, onStart }: ChargerListProps) {
   const [showPayment, setShowPayment] = useState(false);
-  const [selectedPrice, setSelectedPrice] = useState('');
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   
-  const handleStartClick = (price: string) => {
-    setSelectedPrice(price);
+  const handleStartClick = (station: Station) => {
+    setSelectedStation(station);
     setShowPayment(true);
   };
 
   const handlePaymentSuccess = () => {
     setShowPayment(false);
-    if (onStart) onStart();
+    if (onStart && selectedStation) {
+      // Ensure price is a number before passing to onStart
+      const rate = typeof selectedStation.price === 'string' 
+        ? parseInt(selectedStation.price) 
+        : selectedStation.price;
+      onStart(rate, selectedStation.name);
+    }
   };
 
   return (
     <div className="w-full max-w-md mt-2">
-      {showPayment && (
+      {showPayment && selectedStation && (
         <PaymentModal 
-          amount={selectedPrice} 
+          amount={selectedStation.price.toString()} 
           onSuccess={handlePaymentSuccess} 
           onClose={() => setShowPayment(false)}
         />
       )}
 
       <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
-        {CHARGERS.map((charger) => (
-          <div key={charger.id} className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-[32px] flex justify-between items-center transition-all hover:border-emerald-500/20">
+        {items.map((station) => (
+          <div key={station.id} className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-[32px] flex justify-between items-center transition-all hover:border-emerald-500/20">
             <div>
-              <h3 className="text-white font-black italic uppercase text-sm tracking-tight">{charger.name}</h3>
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">{charger.power} • {charger.dist}</p>
-              <p className="text-emerald-400 text-sm font-black mt-2">₹{charger.price}<span className="text-zinc-600 text-[10px] ml-1">/unit</span></p>
+              <h3 className="text-white font-black italic uppercase text-sm tracking-tight">{station.name}</h3>
+              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">{station.charger_type}</p>
+              <p className="text-emerald-400 text-sm font-black mt-2">₹{station.price}<span className="text-zinc-600 text-[10px] ml-1">/unit</span></p>
             </div>
             <button 
-              onClick={() => handleStartClick(charger.price)}
+              onClick={() => handleStartClick(station)}
               className="bg-emerald-500 text-black px-8 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all"
             >
               START
