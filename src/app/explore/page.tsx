@@ -131,4 +131,5 @@ export default function ExplorePage() {
       `}</style>
     </main>
   );
+  
 }
