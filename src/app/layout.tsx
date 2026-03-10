@@ -8,7 +8,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ChargeShare - EV Social Network",
+  title: "Charge.Share - EV Social Network",
   description: "Share your charger, grow the community.",
 };
 
