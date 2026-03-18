@@ -19,6 +19,7 @@ export default function OnboardingPage() {
   // Step 1 — personal details
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [vehicleReg, setVehicleReg] = useState('');
 
   // Step 2 — password
   const [password, setPassword] = useState('');
@@ -30,6 +31,7 @@ export default function OnboardingPage() {
   }, [user, loading]);
 
   const formatMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10);
+  const formatVehicleReg = (val: string) => val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
 
   const submitDetails = async () => {
     if (!fullName.trim()) return setError('Full name is required.');
@@ -41,6 +43,7 @@ export default function OnboardingPage() {
       id: user!.id,
       full_name: fullName.trim(),
       mobile_number: mobile,
+      vehicle_reg_number: vehicleReg.trim() || null,
       updated_at: new Date().toISOString(),
     });
 
@@ -61,7 +64,6 @@ export default function OnboardingPage() {
       return setError(err.message);
     }
 
-    // Mark onboarding complete
     await supabase.from('profiles').upsert({
       id: user!.id,
       onboarding_complete: true,
@@ -99,7 +101,6 @@ export default function OnboardingPage() {
           <p className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.25em]">
             Set Up Your Account
           </p>
-          {/* Progress bar */}
           <div className="mt-4 h-1 bg-zinc-900 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
@@ -154,6 +155,23 @@ export default function OnboardingPage() {
                   className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
                 />
               </div>
+            </div>
+
+            {/* Vehicle Registration — optional */}
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Vehicle Registration No. <span className="text-zinc-700 normal-case font-bold tracking-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={vehicleReg}
+                onChange={e => { setVehicleReg(formatVehicleReg(e.target.value)); setError(''); }}
+                placeholder="HR26DK1234"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold font-mono focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors tracking-widest uppercase"
+              />
+              <p className="text-zinc-700 text-[8px] font-bold mt-1.5">
+                Shown to hosts as a trust signal · can be added later in Profile
+              </p>
             </div>
 
             {/* Email read-only */}
@@ -229,9 +247,8 @@ export default function OnboardingPage() {
               />
             </div>
 
-            {/* Strength indicator */}
             {password.length > 0 && (
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
                 {[1, 2, 3, 4].map(n => (
                   <div
                     key={n}
@@ -303,6 +320,12 @@ export default function OnboardingPage() {
                 <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Email</span>
                 <span className="text-white text-[11px] font-black truncate max-w-[160px]">{user.email}</span>
               </div>
+              {vehicleReg && (
+                <div className="flex justify-between items-center pt-1 border-t border-zinc-800">
+                  <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Vehicle</span>
+                  <span className="text-emerald-400 text-[11px] font-black font-mono tracking-widest">{vehicleReg}</span>
+                </div>
+              )}
             </div>
 
             <button

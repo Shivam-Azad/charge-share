@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import BatteryCard from '@/components/ui/BatteryCard';
@@ -7,8 +7,9 @@ import FilterChips from '@/components/ui/FilterChips';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useVehicle } from '@/context/VehicleContext';
+import { useSessionRequest } from '@/hooks/useSessionRequest';
 
-// ─── DISTANCE CALC ─────────────────────────────────────────────────────────
+// ─── DISTANCE CALC ──────────────────────────────────────────────────────────
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -17,47 +18,76 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── OTP BOOKING MODAL ─────────────────────────────────────────────────────
-function BookingModal({ station, onConfirm, onClose }: { station: any; onConfirm: () => void; onClose: () => void }) {
-  const [step, setStep] = useState<'confirm' | 'payment' | 'otp' | 'success'>('confirm');
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [generatedOtp] = useState(() => Math.floor(1000 + Math.random() * 9000).toString());
-  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
-  const [payStep, setPayStep] = useState<'form' | 'processing' | 'done'>('form');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+// ─── BOOKING MODAL ──────────────────────────────────────────────────────────
+// Replaces the old fake OTP modal.
+// Steps: confirm details → (submit) → waiting for host → denied/approved
+function BookingModal({
+  station,
+  userId,
+  onApproved,
+  onClose,
+}: {
+  station: any;
+  userId: string;
+  onApproved: (sessionId: string) => void;
+  onClose: () => void;
+}) {
+  const { session, loading, error, createRequest, cancelRequest } = useSessionRequest(userId);
+  const [step, setStep] = useState<'confirm' | 'waiting' | 'denied'>('confirm');
+  const [walletAvailable, setWalletAvailable] = useState<number | null>(null);
+  const supabase = createClient();
 
-  const formatCard = (v: string) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-  const formatExpiry = (v: string) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? `${d.slice(0,2)}/${d.slice(2)}` : d; };
+  const rate = station.price_per_kwh || 11;
+  const power = station.power_kw || 7.4;
+  const timeLimitMins = 120;
+  const holdAmount = +(rate * power * (timeLimitMins / 60)).toFixed(2);
 
-  const handlePayment = () => {
-    const e: Record<string, string> = {};
-    if (card.number.replace(/\s/g, '').length < 16) e.number = 'Invalid';
-    if (card.expiry.length < 5) e.expiry = 'Invalid';
-    if (card.cvv.length < 3) e.cvv = 'Invalid';
-    if (!card.name.trim()) e.name = 'Required';
-    setErrors(e);
-    if (Object.keys(e).length > 0) return;
-    setPayStep('processing');
-    setTimeout(() => { setPayStep('done'); setTimeout(() => setStep('otp'), 1000); }, 2500);
+  // Load wallet balance for display
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('wallets')
+      .select('balance, held')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data }) => {
+        if (data) setWalletAvailable(+(data.balance - data.held).toFixed(0));
+      });
+  }, [userId]);
+
+  // Watch for status changes from the hook
+  useEffect(() => {
+    if (!session) return;
+    if (session.status === 'approved') {
+      onApproved(session.id);
+    } else if (session.status === 'denied') {
+      setStep('denied');
+    }
+  }, [session?.status]);
+
+  const handleBook = async () => {
+    const result = await createRequest({
+      chargerId: station.id,
+      hostId: station.host_id,
+      ratePerkWh: rate,
+      powerkW: power,
+      timeLimitMins,
+    });
+    if (result) setStep('waiting');
   };
 
-  const handleOtp = (idx: number, val: string) => {
-    const next = [...otp];
-    next[idx] = val.slice(-1);
-    setOtp(next);
-    if (val && idx < 3) document.getElementById(`otp-${idx + 1}`)?.focus();
+  const handleCancel = async () => {
+    if (session?.id) await cancelRequest(session.id);
+    onClose();
   };
 
-  const checkOtp = () => {
-    if (otp.join('') === generatedOtp) { setStep('success'); setTimeout(onConfirm, 1500); }
-    else { setOtp(['', '', '', '']); document.getElementById('otp-0')?.focus(); }
-  };
+  const insufficientBalance = walletAvailable !== null && walletAvailable < holdAmount;
 
   return (
     <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
       <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
 
-        {/* ── Confirm Step ── */}
+        {/* ── Confirm step ── */}
         {step === 'confirm' && (
           <div className="p-6 space-y-4 animate-in fade-in duration-300">
             <div className="text-center mb-2">
@@ -66,12 +96,13 @@ function BookingModal({ station, onConfirm, onClose }: { station: any; onConfirm
               <p className="text-zinc-500 text-[9px] font-bold mt-0.5">{station.address || 'India'}</p>
             </div>
 
+            {/* Session details */}
             <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2">
               {[
-                ['Rate', `₹${station.price_per_kwh || 11}/kWh`],
-                ['Deposit (deducted at end)', '₹11.00'],
+                ['Rate', `₹${rate}/kWh`],
+                ['Power', `${power} kW`],
+                ['Time Limit', `${timeLimitMins} mins`],
                 ['Plug Type', (station.plug_types || ['Type 2']).join(', ')],
-                ['Power', `${station.power_kw || 7.4} kW`],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between items-center">
                   <span className="text-zinc-500 text-[9px] font-bold uppercase">{k}</span>
@@ -80,120 +111,108 @@ function BookingModal({ station, onConfirm, onClose }: { station: any; onConfirm
               ))}
             </div>
 
-            <div className="bg-blue-500/5 border border-blue-500/20 p-3 rounded-xl">
-              <p className="text-blue-400 text-[8px] font-bold">A ₹11 deposit is charged now and deducted from your final bill. Pay the rest when done charging.</p>
+            {/* Pre-auth hold info */}
+            <div className="bg-orange-500/5 border border-orange-500/20 p-3 rounded-xl space-y-1">
+              <div className="flex justify-between items-center">
+                <p className="text-orange-300 text-[9px] font-black uppercase tracking-wide">Pre-Auth Hold</p>
+                <p className="text-orange-400 font-black text-sm">₹{holdAmount}</p>
+              </div>
+              <p className="text-zinc-600 text-[8px] font-bold">
+                Held from wallet now · released when session ends · only actual usage charged
+              </p>
             </div>
 
-            <button onClick={() => setStep('payment')} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
-              Pay Deposit & Book →
+            {/* Wallet balance */}
+            {walletAvailable !== null && (
+              <div className={`flex justify-between items-center px-3 py-2 rounded-xl border ${
+                insufficientBalance
+                  ? 'bg-red-500/5 border-red-500/20'
+                  : 'bg-zinc-800/30 border-zinc-700'
+              }`}>
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Your Balance</span>
+                <span className={`font-black text-sm ${insufficientBalance ? 'text-red-400' : 'text-white'}`}>
+                  ₹{walletAvailable}
+                </span>
+              </div>
+            )}
+
+            {insufficientBalance && (
+              <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-xl">
+                <p className="text-red-400 text-[9px] font-bold text-center">
+                  Insufficient balance. <Link href="/wallet" className="underline font-black">Top up wallet →</Link>
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider animate-in fade-in">
+                ⚠ {error}
+              </p>
+            )}
+
+            <button
+              onClick={handleBook}
+              disabled={loading || insufficientBalance}
+              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Sending Request...' : `Request Session →`}
             </button>
             <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
           </div>
         )}
 
-        {/* ── Stripe Payment Step ── */}
-        {step === 'payment' && (
-          <div>
-            <div className="bg-[#635BFF] px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-white rounded flex items-center justify-center"><span className="text-[#635BFF] font-black text-[10px]">S</span></div>
-                <span className="text-white font-bold text-sm">Stripe</span>
-                <span className="text-white/50 text-[9px] font-bold">· Booking Deposit</span>
-              </div>
-              <span className="text-white font-black">₹11.00</span>
+        {/* ── Waiting for host ── */}
+        {step === 'waiting' && (
+          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="relative mx-auto w-20 h-20">
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+              <div className="absolute inset-3 rounded-full bg-emerald-500/10 flex items-center justify-center text-2xl">⚡</div>
             </div>
-            <div className="p-6 space-y-3">
-              {payStep === 'form' && (
-                <div className="space-y-3 animate-in fade-in duration-200">
-                  <div>
-                    <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1">Card Number</label>
-                    <input value={card.number} onChange={e => setCard(c => ({ ...c, number: formatCard(e.target.value) }))}
-                      placeholder="4242 4242 4242 4242"
-                      className={`w-full bg-zinc-800 border rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.number ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1">Expiry</label>
-                      <input value={card.expiry} onChange={e => setCard(c => ({ ...c, expiry: formatExpiry(e.target.value) }))}
-                        placeholder="MM/YY"
-                        className={`w-full bg-zinc-800 border rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.expiry ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
-                    </div>
-                    <div>
-                      <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1">CVV</label>
-                      <input value={card.cvv} onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                        placeholder="•••" type="password"
-                        className={`w-full bg-zinc-800 border rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.cvv ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1">Name on Card</label>
-                    <input value={card.name} onChange={e => setCard(c => ({ ...c, name: e.target.value.toUpperCase() }))}
-                      placeholder="SHIVAM AZAD"
-                      className={`w-full bg-zinc-800 border rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 uppercase ${errors.name ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
-                  </div>
-                  <button onClick={handlePayment} className="w-full py-4 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
-                    Pay ₹11 Deposit →
-                  </button>
-                </div>
-              )}
-              {payStep === 'processing' && (
-                <div className="py-8 text-center">
-                  <div className="w-14 h-14 border-4 border-[#635BFF]/20 border-t-[#635BFF] rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-white font-black italic uppercase text-[10px] tracking-widest animate-pulse">Processing Deposit...</p>
-                </div>
-              )}
-              {payStep === 'done' && (
-                <div className="py-8 text-center animate-in zoom-in duration-500">
-                  <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-black">✓</div>
-                  <p className="text-white font-black italic uppercase text-sm">Deposit Confirmed</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── OTP Step ── */}
-        {step === 'otp' && (
-          <div className="p-6 text-center space-y-5 animate-in fade-in duration-300">
             <div>
-              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Session Start</p>
-              <h2 className="text-white font-black italic uppercase text-xl">Enter OTP</h2>
-              <p className="text-zinc-500 text-[9px] font-bold mt-2">
-                Show this to your host or enter the OTP from the charger display
+              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Sent</p>
+              <h2 className="text-white font-black italic uppercase text-xl">Waiting for Host</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-2">
+                The host is being notified. This usually takes under a minute.
               </p>
             </div>
 
-            {/* Demo OTP hint */}
-            <div className="bg-emerald-500/5 border border-emerald-500/20 p-3 rounded-xl">
-              <p className="text-emerald-400 text-[9px] font-black uppercase tracking-widest">Demo OTP: {generatedOtp}</p>
+            <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2 text-left">
+              <div className="flex justify-between">
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Station</span>
+                <span className="text-white text-[9px] font-black">{station.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Hold</span>
+                <span className="text-orange-400 text-[9px] font-black">₹{holdAmount} reserved</span>
+              </div>
             </div>
 
-            <div className="flex gap-3 justify-center">
-              {otp.map((d, i) => (
-                <input
-                  key={i}
-                  id={`otp-${i}`}
-                  value={d}
-                  onChange={e => handleOtp(i, e.target.value)}
-                  onKeyDown={e => e.key === 'Backspace' && !d && i > 0 && document.getElementById(`otp-${i - 1}`)?.focus()}
-                  maxLength={1}
-                  className="w-14 h-14 text-center text-2xl font-black text-white bg-zinc-800 border-2 border-zinc-700 rounded-2xl focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-              ))}
-            </div>
-
-            <button onClick={checkOtp} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
-              Start Charging →
+            <button
+              onClick={handleCancel}
+              className="w-full py-3 text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-white transition-colors"
+            >
+              Cancel Request
             </button>
           </div>
         )}
 
-        {/* ── Success ── */}
-        {step === 'success' && (
-          <div className="p-8 text-center animate-in zoom-in duration-500">
-            <div className="w-24 h-24 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-4xl font-black shadow-[0_0_50px_rgba(16,185,129,0.3)]">⚡</div>
-            <h3 className="text-white font-black italic uppercase text-2xl tracking-tighter">Charging!</h3>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-2">Session is now live</p>
+        {/* ── Denied ── */}
+        {step === 'denied' && (
+          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-3xl">✕</div>
+            <div>
+              <p className="text-red-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Denied</p>
+              <h2 className="text-white font-black italic uppercase text-xl">Host Declined</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-2">
+                Your wallet hold has been released. Try another station nearby.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-4 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all"
+            >
+              Back to Stations
+            </button>
           </div>
         )}
       </div>
@@ -201,21 +220,82 @@ function BookingModal({ station, onConfirm, onClose }: { station: any; onConfirm
   );
 }
 
-// ─── FINAL PAYMENT MODAL ───────────────────────────────────────────────────
-function FinalPaymentModal({ totalAmount, bookingFee, restAmount, onComplete }: {
-  totalAmount: number; bookingFee: number; restAmount: number; onComplete: () => void;
+// ─── FINAL PAYMENT MODAL ────────────────────────────────────────────────────
+function FinalPaymentModal({ totalAmount, holdAmount, sessionId, userId, onComplete }: {
+  totalAmount: number;
+  holdAmount: number;
+  sessionId: string | null;
+  userId: string | null;
+  onComplete: () => void;
 }) {
-  const [step, setStep] = useState<'bill' | 'payment' | 'feedback' | 'success'>('bill');
+  const supabase = createClient();
+  const [step, setStep] = useState<'bill' | 'processing' | 'feedback' | 'success'>('bill');
   const [rating, setRating] = useState(0);
-  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
-  const [payStep, setPayStep] = useState<'form' | 'processing' | 'done'>('form');
+  const restAmount = Math.max(0, totalAmount - holdAmount);
 
-  const formatCard = (v: string) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-  const formatExpiry = (v: string) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? `${d.slice(0,2)}/${d.slice(2)}` : d; };
+  const handleSettle = async () => {
+    setStep('processing');
+    // Release hold, deduct actual cost from wallet
+    if (userId && sessionId) {
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('balance, held')
+        .eq('user_id', userId)
+        .single();
 
-  const handlePay = () => {
-    setPayStep('processing');
-    setTimeout(() => { setPayStep('done'); setTimeout(() => setStep('feedback'), 1000); }, 2500);
+      if (wallet) {
+        const newHeld = Math.max(0, wallet.held - holdAmount);
+        const newBalance = Math.max(0, wallet.balance - totalAmount);
+        await supabase
+          .from('wallets')
+          .update({ balance: newBalance, held: newHeld, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+
+        await supabase.from('wallet_transactions').insert({
+          user_id: userId,
+          type: 'charge',
+          amount: -totalAmount,
+          description: 'Session payment',
+          session_id: sessionId,
+        });
+
+        await supabase
+          .from('session_requests')
+          .update({ status: 'completed', ended_at: new Date().toISOString(), amount_charged: totalAmount })
+          .eq('id', sessionId);
+      }
+    }
+    setTimeout(() => setStep('feedback'), 1200);
+  };
+
+  const submitRating = async (score: number) => {
+    if (userId && sessionId && score > 0) {
+      // Get host_id from session
+      const { data: sess } = await supabase
+        .from('session_requests')
+        .select('host_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sess?.host_id) {
+        await supabase.from('ratings').insert({
+          session_id: sessionId,
+          from_user: userId,
+          to_user: sess.host_id,
+          score,
+        });
+        // Recalculate host rating average
+        const { data: allRatings } = await supabase
+          .from('ratings')
+          .select('score')
+          .eq('to_user', sess.host_id);
+        if (allRatings && allRatings.length > 0) {
+          const avg = allRatings.reduce((s, r) => s + r.score, 0) / allRatings.length;
+          await supabase.from('profiles').update({ rating: avg }).eq('id', sess.host_id);
+        }
+      }
+    }
+    setStep('success');
   };
 
   return (
@@ -227,66 +307,28 @@ function FinalPaymentModal({ totalAmount, bookingFee, restAmount, onComplete }: 
             <h2 className="text-white font-black italic uppercase text-center mb-6 tracking-tighter text-xl">Session Complete</h2>
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                <span>Gross Total</span><span className="text-white italic">₹{totalAmount.toFixed(2)}</span>
+                <span>Total Cost</span><span className="text-white italic">₹{totalAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                <span>Deposit Paid</span><span className="italic">-₹{bookingFee.toFixed(2)}</span>
+              <div className="flex justify-between text-[10px] text-orange-400 font-bold uppercase tracking-widest">
+                <span>Pre-Auth Hold</span><span className="italic">-₹{holdAmount.toFixed(2)}</span>
               </div>
               <div className="h-px bg-zinc-800 my-2" />
               <div className="flex justify-between items-center py-2">
                 <span className="text-zinc-400 text-[12px] font-black uppercase">Amount Due</span>
                 <span className="text-4xl font-black text-white italic">₹{restAmount.toFixed(2)}</span>
               </div>
+              <p className="text-zinc-600 text-[8px] font-bold text-center">Deducted from your ChargeShare wallet</p>
             </div>
-            <button onClick={() => setStep('payment')} className="w-full py-5 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all">
-              Pay ₹{restAmount.toFixed(2)} via Stripe →
+            <button onClick={handleSettle} className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all">
+              Confirm & Pay →
             </button>
           </div>
         )}
 
-        {step === 'payment' && (
-          <div>
-            <div className="bg-[#635BFF] px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-white rounded flex items-center justify-center"><span className="text-[#635BFF] font-black text-[10px]">S</span></div>
-                <span className="text-white font-bold text-sm">Stripe</span>
-                <span className="text-white/50 text-[9px]">· Final Payment</span>
-              </div>
-              <span className="text-white font-black">₹{restAmount.toFixed(2)}</span>
-            </div>
-            <div className="p-6 space-y-3">
-              {payStep === 'form' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1">Card Number</label>
-                    <input value={card.number} onChange={e => setCard(c => ({ ...c, number: formatCard(e.target.value) }))}
-                      placeholder="4242 4242 4242 4242"
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 focus:border-[#635BFF]" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input value={card.expiry} onChange={e => setCard(c => ({ ...c, expiry: formatExpiry(e.target.value) }))} placeholder="MM/YY"
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 focus:border-[#635BFF]" />
-                    <input value={card.cvv} onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g,'').slice(0,4) }))} placeholder="•••" type="password"
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 focus:border-[#635BFF]" />
-                  </div>
-                  <input value={card.name} onChange={e => setCard(c => ({ ...c, name: e.target.value.toUpperCase() }))} placeholder="NAME ON CARD"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 focus:border-[#635BFF] uppercase" />
-                  <button onClick={handlePay} className="w-full py-4 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95">Pay ₹{restAmount.toFixed(2)} →</button>
-                </div>
-              )}
-              {payStep === 'processing' && (
-                <div className="py-8 text-center">
-                  <div className="w-14 h-14 border-4 border-[#635BFF]/20 border-t-[#635BFF] rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-white font-black italic uppercase text-[10px] animate-pulse">Processing...</p>
-                </div>
-              )}
-              {payStep === 'done' && (
-                <div className="py-6 text-center animate-in zoom-in">
-                  <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-black">✓</div>
-                  <p className="text-white font-black italic uppercase text-sm">Payment Complete</p>
-                </div>
-              )}
-            </div>
+        {step === 'processing' && (
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Processing Payment...</p>
           </div>
         )}
 
@@ -300,10 +342,10 @@ function FinalPaymentModal({ totalAmount, bookingFee, restAmount, onComplete }: 
                   className={`text-3xl transition-all ${rating >= star ? 'grayscale-0 scale-110' : 'grayscale opacity-30'}`}>⚡</button>
               ))}
             </div>
-            <textarea placeholder="Any comments? (Optional)"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-emerald-500/50 mb-4 resize-none h-20 placeholder:text-zinc-600" />
-            <button onClick={() => setStep('success')} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-xl">Submit Review</button>
-            <button onClick={() => setStep('success')} className="w-full mt-2 py-3 text-zinc-600 font-bold uppercase text-[9px] tracking-widest hover:text-white">Skip</button>
+            <button onClick={() => submitRating(rating)} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-xl mb-2">
+              Submit Review
+            </button>
+            <button onClick={() => submitRating(0)} className="w-full py-3 text-zinc-600 font-bold uppercase text-[9px] tracking-widest hover:text-white">Skip</button>
           </div>
         )}
 
@@ -311,7 +353,7 @@ function FinalPaymentModal({ totalAmount, bookingFee, restAmount, onComplete }: 
           <div className="p-8 text-center animate-in zoom-in duration-500">
             <div className="w-24 h-24 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-4xl font-black shadow-[0_0_40px_rgba(16,185,129,0.3)]">✓</div>
             <h3 className="text-white font-black italic uppercase text-2xl tracking-tighter mb-2">All Done!</h3>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-8">Session Closed · E-Receipt Sent</p>
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-8">Session Closed · Wallet Updated</p>
             <button onClick={onComplete} className="w-full py-5 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-2xl">Back to Home</button>
           </div>
         )}
@@ -320,7 +362,7 @@ function FinalPaymentModal({ totalAmount, bookingFee, restAmount, onComplete }: 
   );
 }
 
-// ─── MAIN HOME PAGE ────────────────────────────────────────────────────────
+// ─── MAIN HOME PAGE ──────────────────────────────────────────────────────────
 export default function Home() {
   const router = useRouter();
   const supabase = createClient();
@@ -337,6 +379,9 @@ export default function Home() {
   const [range, setRange] = useState(START_RANGE);
   const [stationName, setStationName] = useState("Sarah's Driveway");
   const [stationRate, setStationRate] = useState(11);
+  const [stationHoldAmount, setStationHoldAmount] = useState(0);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
   const [nearbyStations, setNearbyStations] = useState<any[]>([]);
   const [filteredStations, setFilteredStations] = useState<any[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -349,12 +394,8 @@ export default function Home() {
     if (!user) return;
     const meta = user.user_metadata;
     setUserName(meta?.full_name || meta?.name || user.email?.split('@')[0] || 'Driver');
-
-    const loadProfile = async () => {
-      const { data } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
-      if (data?.full_name) setUserName(data.full_name.split(' ')[0]);
-    };
-    loadProfile();
+    supabase.from('profiles').select('full_name').eq('id', user.id).single()
+      .then(({ data }) => { if (data?.full_name) setUserName(data.full_name.split(' ')[0]); });
   }, [user]);
 
   // Init & recovery
@@ -365,6 +406,8 @@ export default function Home() {
     const savedRange = localStorage.getItem('range');
     const savedName = localStorage.getItem('currentStationName');
     const savedRate = localStorage.getItem('currentStationRate');
+    const savedHold = localStorage.getItem('currentHoldAmount');
+    const savedSessionId = localStorage.getItem('currentSessionId');
 
     setChargingStatus(savedStatus || 'IDLE');
     if (savedKwh) setLiveKwh(parseFloat(savedKwh));
@@ -372,6 +415,8 @@ export default function Home() {
     if (savedRange) setRange(parseFloat(savedRange));
     if (savedName) setStationName(savedName);
     if (savedRate) setStationRate(parseInt(savedRate));
+    if (savedHold) setStationHoldAmount(parseFloat(savedHold));
+    if (savedSessionId) setActiveSessionId(savedSessionId);
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -384,23 +429,20 @@ export default function Home() {
   // Fetch nearby
   useEffect(() => {
     if (!userLocation) return;
-    const fetchNearby = async () => {
-      const { data, error } = await supabase.rpc('nearby_chargers_bbox', {
-        lat: userLocation.lat, lng: userLocation.lng, radius_km: 25,
-      });
+    supabase.rpc('nearby_chargers_bbox', {
+      lat: userLocation.lat, lng: userLocation.lng, radius_km: 25,
+    }).then(({ data, error }) => {
       if (!error && data) {
         const withDist = data.map((c: any) => {
           const cLat = parseFloat(c.latitude);
           const cLng = parseFloat(c.longitude);
           const dist = !isNaN(cLat) && !isNaN(cLng)
-            ? haversine(userLocation.lat, userLocation.lng, cLat, cLng)
-            : 0;
+            ? haversine(userLocation.lat, userLocation.lng, cLat, cLng) : 0;
           return { ...c, distanceNum: dist, distance: dist.toFixed(1) };
         }).sort((a: any, b: any) => a.distanceNum - b.distanceNum);
         setNearbyStations(withDist);
       }
-    };
-    fetchNearby();
+    });
   }, [userLocation]);
 
   // Apply filters
@@ -413,7 +455,7 @@ export default function Home() {
     setFilteredStations(filtered);
   }, [nearbyStations, activeFilter]);
 
-  // Persist
+  // Persist charging state
   useEffect(() => {
     if (chargingStatus) {
       localStorage.setItem('chargingStatus', chargingStatus);
@@ -442,28 +484,34 @@ export default function Home() {
   }, [chargingStatus]);
 
   const currentTotalCost = liveKwh * stationRate;
-  const bookingFee = 11;
-  const restAmount = Math.max(0, currentTotalCost - bookingFee);
 
-  const handleBook = (station: any) => setBookingStation(station);
+  // Called when host approves → start charging
+  const handleSessionApproved = (sessionId: string) => {
+    const station = bookingStation;
+    const rate = station?.price_per_kwh || 11;
+    const hold = +(rate * (station?.power_kw || 7.4) * (120 / 60)).toFixed(2);
+    const name = station?.name || 'Unknown Station';
 
-  const handleBookingConfirmed = () => {
-    const rate = bookingStation.price_per_kwh || 11;
-    const name = bookingStation.name || 'Unknown Station';
     localStorage.setItem('currentStationRate', rate.toString());
     localStorage.setItem('currentStationName', name);
+    localStorage.setItem('currentHoldAmount', hold.toString());
+    localStorage.setItem('currentSessionId', sessionId);
+
     setStationRate(rate);
     setStationName(name);
+    setStationHoldAmount(hold);
+    setActiveSessionId(sessionId);
     setChargingStatus('CHARGING');
     setBookingStation(null);
   };
 
-  const resetDemo = () => {
+  const resetSession = () => {
     localStorage.clear();
     setBatteryLevel(START_LEVEL);
     setRange(START_RANGE);
     setLiveKwh(0);
     setChargingStatus('IDLE');
+    setActiveSessionId(null);
     window.location.reload();
   };
 
@@ -472,12 +520,29 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black flex flex-col items-center pb-40">
 
-      {bookingStation && (
+      {/* Booking modal — only for logged-in users */}
+      {bookingStation && user && (
         <BookingModal
           station={bookingStation}
-          onConfirm={handleBookingConfirmed}
+          userId={user.id}
+          onApproved={handleSessionApproved}
           onClose={() => setBookingStation(null)}
         />
+      )}
+
+      {/* Guest trying to book */}
+      {bookingStation && !user && (
+        <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] p-8 text-center space-y-5">
+            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-2xl">⚡</div>
+            <h2 className="text-white font-black italic uppercase text-xl">Sign In to Book</h2>
+            <p className="text-zinc-500 text-[10px] font-bold">You need an account to request a charging session.</p>
+            <Link href="/login" className="block w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
+              Sign In / Register →
+            </Link>
+            <button onClick={() => setBookingStation(null)} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+          </div>
+        </div>
       )}
 
       <div className="w-full max-w-md px-5 pt-12">
@@ -493,7 +558,7 @@ export default function Home() {
               ● {chargingStatus === 'CHARGING' ? 'Charging Live' : 'System Ready'}
             </p>
           </div>
-          <button onClick={resetDemo} className="text-[10px] text-zinc-700 font-bold uppercase border border-zinc-800 px-2 py-1 rounded-md hover:text-white transition-colors">
+          <button onClick={resetSession} className="text-[10px] text-zinc-700 font-bold uppercase border border-zinc-800 px-2 py-1 rounded-md hover:text-white transition-colors">
             Reset
           </button>
         </div>
@@ -508,10 +573,7 @@ export default function Home() {
                 <span className="text-emerald-500 text-[9px] font-black uppercase">{filteredStations.length} Found</span>
               </div>
 
-              <FilterChips
-                activeFilter={activeFilter as any}
-                onFilterChange={(f) => setActiveFilter(f)}
-              />
+              <FilterChips activeFilter={activeFilter as any} onFilterChange={(f) => setActiveFilter(f)} />
 
               <div className="mt-3">
                 {filteredStations.length === 0 ? (
@@ -541,7 +603,7 @@ export default function Home() {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleBook(station)}
+                          onClick={() => setBookingStation(station)}
                           disabled={station.is_available === false}
                           className="bg-emerald-500 text-black px-5 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
                         >
@@ -554,6 +616,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
+            // Active charging session card
             <div className="bg-zinc-900 border border-emerald-500/30 p-7 rounded-[40px] shadow-[0_0_50px_rgba(16,185,129,0.12)] animate-in zoom-in-95">
               <div className="flex justify-between items-center mb-7">
                 <div>
@@ -591,9 +654,10 @@ export default function Home() {
       {chargingStatus === 'PAYING' && (
         <FinalPaymentModal
           totalAmount={currentTotalCost}
-          bookingFee={bookingFee}
-          restAmount={restAmount}
-          onComplete={() => { setChargingStatus('IDLE'); setLiveKwh(0.0); localStorage.clear(); }}
+          holdAmount={stationHoldAmount}
+          sessionId={activeSessionId}
+          userId={user?.id || null}
+          onComplete={resetSession}
         />
       )}
 
