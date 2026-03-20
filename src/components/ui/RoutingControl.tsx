@@ -18,39 +18,35 @@ export default function RoutingControl({ start, end, map }: RoutingProps) {
 
     const safeRemove = (control: any) => {
       if (!control) return;
-      
       try {
-        // 1. Manually hide/clear the lines to stop internal update loops
-        if (control.getPlan()) {
-          control.setWaypoints([]);
-        }
-
-        // 2. Only remove if the map still has a reference to this control
-        if (control._map && map) {
-          map.removeControl(control);
-        }
+        if (control.getPlan()) control.setWaypoints([]);
+        if (control._map && map) map.removeControl(control);
       } catch (e) {
-        // Silently catch the 'removeLayer' error if Leaflet beats us to the cleanup
-        console.debug("Routing cleanup: safe exit.");
+        console.debug("Routing cleanup.");
       }
     };
 
-    // Cleanup old instance before starting new one
     safeRemove(routingControlRef.current);
 
     const control = (L as any).Routing.control({
       waypoints: [
         L.latLng(start[0], start[1]),
-        L.latLng(end[0], end[1])
+        L.latLng(end[0], end[1]),
       ],
       lineOptions: {
-        styles: [{ color: "#10b981", weight: 6, opacity: 0.8 }]
+        styles: [
+          { color: '#ffffff', weight: 9, opacity: 0.12 },
+          { color: '#1a73e8', weight: 5, opacity: 1 },
+        ],
+        extendToWaypoints: true,
+        missingRouteTolerance: 0,
       },
-      show: false, 
+      show: false,
       addWaypoints: false,
       routeWhileDragging: false,
-      fitSelectedRoutes: true,
-      draggableWaypoints: false
+      fitSelectedRoutes: false,
+      draggableWaypoints: false,
+      createMarker: () => null,
     }).addTo(map);
 
     routingControlRef.current = control;
@@ -63,5 +59,5 @@ export default function RoutingControl({ start, end, map }: RoutingProps) {
     };
   }, [map, start, end]);
 
-  return null; 
+  return null;
 }
