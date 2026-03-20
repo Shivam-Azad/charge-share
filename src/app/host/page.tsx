@@ -91,7 +91,7 @@ export default function HostPage() {
 
   // ── Enrich a session row with driver + charger info ─────────────────────
   // FIX: fallback chain — full_name → mobile → last 8 of user ID
-  const enrichRequest = async (req: any): Promise<SessionRequest> => {
+const enrichRequest = async (req: any): Promise<SessionRequest> => {
     const [{ data: profile }, { data: charger }] = await Promise.all([
       supabase.from('profiles')
         .select('full_name, vehicle_reg_number, mobile_number')
@@ -100,10 +100,17 @@ export default function HostPage() {
       supabase.from('chargers').select('name').eq('id', req.charger_id).single(),
     ]);
 
-    const driverName =
+    let driverName =
       profile?.full_name?.trim() ||
-      (profile?.mobile_number ? `+91 ${profile.mobile_number}` : null) ||
-      `Driver …${req.driver_id.slice(-8)}`;
+      (profile?.mobile_number ? `+91 ${profile.mobile_number}` : null);
+
+    if (!driverName) {
+      const { data: email } = await supabase
+        .rpc('get_user_email', { user_id: req.driver_id });
+      driverName = email
+        ? email.split('@')[0]
+        : `Driver …${req.driver_id.slice(-8)}`;
+    }
 
     return {
       ...req,
