@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { createClient } from '@/utils/supabase/client';
 
 const PLUG_TYPES = ['CCS2', 'Type 2', 'CHAdeMO', 'Type 1', 'Bharat AC-001', 'Bharat DC-001'];
 const POWER_OPTIONS = ['3.3 kW', '7.4 kW', '11 kW', '22 kW', '50 kW', '100 kW', '150 kW'];
 
-type Tab = 'requests' | 'dashboard' | 'listings' | 'add';
+type Tab = 'requests' | 'active' | 'dashboard' | 'listings' | 'add';
 
 interface HostListing {
   id: string;
@@ -25,6 +26,8 @@ interface SessionRequest {
   driver_id: string;
   status: string;
   requested_at: string;
+  approved_at: string | null;
+  started_at: string | null;
   hold_amount: number;
   rate_per_kwh: number;
   time_limit_mins: number;
@@ -36,6 +39,7 @@ interface SessionRequest {
 }
 
 export default function HostPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const supabase = useRef(createClient()).current;
 
@@ -45,6 +49,7 @@ export default function HostPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [pendingRequests, setPendingRequests] = useState<SessionRequest[]>([]);
+  const [activeSessions, setActiveSessions] = useState<SessionRequest[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [autoApprove, setAutoApprove] = useState(false);
 
@@ -65,7 +70,7 @@ export default function HostPage() {
     setTimeout(() => setToast(''), 3000);
   };
 
-  // ── Load host listings ───────────────────────────────────────────────
+  // ── Load host listings ──────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -84,39 +89,61 @@ export default function HostPage() {
     load();
   }, [user]);
 
-  // ── Load pending session requests ────────────────────────────────────
+  // ── Enrich a session row with driver + charger info ─────────────────────
+  const enrichRequest = async (req: any): Promise<SessionRequest> => {
+    const [{ data: profile }, { data: charger }] = await Promise.all([
+      supabase.from('profiles').select('full_name, vehicle_reg_number').eq('id', req.driver_id).single(),
+      supabase.from('chargers').select('name').eq('id', req.charger_id).single(),
+    ]);
+    return {
+      ...req,
+      driver_name: profile?.full_name || 'Unknown Driver',
+      vehicle_reg: profile?.vehicle_reg_number || null,
+      charger_name: charger?.name || 'Your Charger',
+    };
+  };
+
+  // ── Load pending + active sessions ──────────────────────────────────────
   const loadRequests = async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('session_requests')
       .select('*')
       .eq('host_id', user.id)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'approved', 'en_route', 'active'])
       .order('requested_at', { ascending: false });
 
     if (error || !data) return;
 
-    // Enrich with driver profile + charger name
-    const enriched = await Promise.all(
-      data.map(async (req: any) => {
-        const [{ data: profile }, { data: charger }] = await Promise.all([
-          supabase.from('profiles').select('full_name, vehicle_reg_number').eq('id', req.driver_id).single(),
-          supabase.from('chargers').select('name').eq('id', req.charger_id).single(),
-        ]);
-        return {
-          ...req,
-          driver_name: profile?.full_name || 'Unknown Driver',
-          vehicle_reg: profile?.vehicle_reg_number || null,
-          charger_name: charger?.name || 'Your Charger',
-        };
-      })
-    );
-    setPendingRequests(enriched);
+    const enriched = await Promise.all(data.map(enrichRequest));
+
+    setPendingRequests(enriched.filter(r => r.status === 'pending'));
+    setActiveSessions(enriched.filter(r => ['approved', 'en_route', 'active'].includes(r.status)));
   };
 
   useEffect(() => { loadRequests(); }, [user]);
 
-  // ── Realtime: listen for new session_requests for this host ──────────
+  // ── Load completed session stats ────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('session_requests')
+      .select('amount_charged')
+      .eq('host_id', user.id)
+      .eq('status', 'completed')
+      .then(({ data }) => {
+        if (data) {
+          const total = data.reduce((s, r) => s + (r.amount_charged || 0), 0);
+          setStats(s => ({
+            ...s,
+            totalEarnings: +(total * 0.85).toFixed(0),
+            totalSessions: data.length,
+          }));
+        }
+      });
+  }, [user]);
+
+  // ── Realtime: new pending requests + active session updates ─────────────
   useEffect(() => {
     if (!user) return;
 
@@ -128,17 +155,24 @@ export default function HostPage() {
         table: 'session_requests',
         filter: `host_id=eq.${user.id}`,
       }, () => {
-        // New request arrived — reload and switch to requests tab
         loadRequests();
         setTab('requests');
         showToast('⚡ New charging request!');
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'session_requests',
+        filter: `host_id=eq.${user.id}`,
+      }, () => {
+        loadRequests();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // ── Allow: approve the session request ──────────────────────────────
+  // ── Allow ───────────────────────────────────────────────────────────────
   const handleAllow = async (req: SessionRequest) => {
     setActionLoading(req.id);
 
@@ -147,7 +181,6 @@ export default function HostPage() {
       .update({ status: 'approved', approved_at: new Date().toISOString() })
       .eq('id', req.id);
 
-    // Notify driver
     await supabase.from('notifications').insert({
       user_id: req.driver_id,
       type: 'session_approved',
@@ -159,10 +192,11 @@ export default function HostPage() {
 
     setPendingRequests(prev => prev.filter(r => r.id !== req.id));
     setActionLoading(null);
-    showToast('✓ Session approved — driver is connecting');
+    showToast('✓ Session approved — driver is on the way');
+    await loadRequests();
   };
 
-  // ── Deny: reject and release wallet hold ────────────────────────────
+  // ── Deny ────────────────────────────────────────────────────────────────
   const handleDeny = async (req: SessionRequest) => {
     setActionLoading(req.id);
 
@@ -171,7 +205,6 @@ export default function HostPage() {
       .update({ status: 'denied' })
       .eq('id', req.id);
 
-    // Release driver's wallet hold
     const { data: wallet } = await supabase
       .from('wallets')
       .select('held')
@@ -193,7 +226,6 @@ export default function HostPage() {
       });
     }
 
-    // Notify driver
     await supabase.from('notifications').insert({
       user_id: req.driver_id,
       type: 'session_denied',
@@ -208,14 +240,38 @@ export default function HostPage() {
     showToast('✗ Request declined · hold released to driver');
   };
 
-  // ── Toggle charger availability ──────────────────────────────────────
+  // ── Force-stop an active session ────────────────────────────────────────
+  const handleForceStop = async (req: SessionRequest) => {
+    if (!confirm('Force-stop this session? The driver will be taken to payment.')) return;
+    setActionLoading(req.id);
+
+    await supabase
+      .from('session_requests')
+      .update({ status: 'completed', ended_at: new Date().toISOString() })
+      .eq('id', req.id);
+
+    await supabase.from('notifications').insert({
+      user_id: req.driver_id,
+      type: 'session_ended',
+      title: 'Session Ended by Host',
+      body: 'Your charging session has been ended by the host.',
+      data: { session_id: req.id },
+      read: false,
+    });
+
+    setActiveSessions(prev => prev.filter(r => r.id !== req.id));
+    setActionLoading(null);
+    showToast('✓ Session force-stopped');
+  };
+
+  // ── Toggle charger availability ─────────────────────────────────────────
   const toggleAvailability = async (id: string, current: boolean) => {
     await supabase.from('chargers').update({ is_available: !current }).eq('id', id);
     setListings(prev => prev.map(l => l.id === id ? { ...l, is_available: !current } : l));
     showToast(!current ? '✓ Charger is now Live' : '✓ Charger set to Offline');
   };
 
-  // ── Add new charger ──────────────────────────────────────────────────
+  // ── Add new charger ──────────────────────────────────────────────────────
   const submitCharger = async () => {
     if (!user) return;
     if (!form.name || !form.address || !form.latitude || !form.longitude || form.plug_types.length === 0) {
@@ -254,6 +310,12 @@ export default function HostPage() {
     return `${Math.floor(secs / 3600)}h ago`;
   };
 
+  const sessionStatusLabel = (status: string) => {
+    if (status === 'approved' || status === 'en_route') return { label: 'Driver En Route', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' };
+    if (status === 'active') return { label: 'Charging Active', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' };
+    return { label: status, color: 'text-zinc-400', bg: 'bg-zinc-800 border-zinc-700' };
+  };
+
   return (
     <main className="min-h-screen bg-black pb-40">
 
@@ -273,7 +335,6 @@ export default function HostPage() {
             <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Your Network</h1>
           </div>
           <div className="flex items-center gap-2">
-            {/* Pending badge */}
             {pendingRequests.length > 0 && (
               <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-[9px] font-black">{pendingRequests.length}</span>
@@ -284,16 +345,21 @@ export default function HostPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1.5 mb-8 bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800">
-          {(['requests', 'dashboard', 'listings', 'add'] as Tab[]).map(t => (
+        <div className="flex gap-1 mb-8 bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 overflow-x-auto no-scrollbar">
+          {(['requests', 'active', 'dashboard', 'listings', 'add'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all relative ${
+              className={`flex-shrink-0 px-3 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${
                 tab === t ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-zinc-500 hover:text-white'
               }`}>
-              {t === 'add' ? '+ Add' : t === 'requests' ? 'Requests' : t}
+              {t === 'add' ? '+ Add' : t === 'requests' ? 'Requests' : t === 'active' ? 'Active' : t}
               {t === 'requests' && pendingRequests.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-black flex items-center justify-center">
                   {pendingRequests.length}
+                </span>
+              )}
+              {t === 'active' && activeSessions.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-[7px] text-black font-black flex items-center justify-center">
+                  {activeSessions.length}
                 </span>
               )}
             </button>
@@ -327,7 +393,6 @@ export default function HostPage() {
             ) : (
               pendingRequests.map(req => (
                 <div key={req.id} className="bg-zinc-900 border border-emerald-500/30 p-5 rounded-[28px] shadow-[0_0_30px_rgba(16,185,129,0.06)] animate-in fade-in zoom-in-95 duration-300">
-                  {/* Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mb-1">New Request · {timeAgo(req.requested_at)}</p>
@@ -339,7 +404,6 @@ export default function HostPage() {
                     <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 flex items-center justify-center text-lg">🚗</div>
                   </div>
 
-                  {/* Session details */}
                   <div className="bg-zinc-800/50 rounded-2xl p-3 space-y-2 mb-4">
                     {[
                       ['Charger', req.charger_name || '–'],
@@ -354,7 +418,6 @@ export default function HostPage() {
                     ))}
                   </div>
 
-                  {/* Allow / Deny buttons */}
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleDeny(req)}
@@ -373,6 +436,83 @@ export default function HostPage() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        )}
+
+        {/* ─── ACTIVE SESSIONS TAB ─── */}
+        {tab === 'active' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {activeSessions.length === 0 ? (
+              <div className="py-16 border border-dashed border-zinc-800 rounded-[32px] text-center">
+                <p className="text-4xl mb-4">⚡</p>
+                <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest mb-2">No active sessions</p>
+                <p className="text-zinc-700 text-[9px] font-bold">Approved sessions will appear here while in progress</p>
+              </div>
+            ) : (
+              activeSessions.map(req => {
+                const { label, color, bg } = sessionStatusLabel(req.status);
+                const elapsedMins = req.started_at
+                  ? Math.floor((Date.now() - new Date(req.started_at).getTime()) / 60000)
+                  : null;
+
+                return (
+                  <div key={req.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px] space-y-4">
+
+                    {/* Status badge + driver */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest mb-2 ${bg}`}>
+                          <span className={`relative flex h-1.5 w-1.5`}>
+                            {req.status === 'active' && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400`} />}
+                            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${req.status === 'active' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                          </span>
+                          <span className={color}>{label}</span>
+                        </div>
+                        <h3 className="text-white font-black italic uppercase text-base">{req.driver_name}</h3>
+                        {req.vehicle_reg && (
+                          <span className="text-zinc-500 text-[9px] font-black font-mono tracking-widest">{req.vehicle_reg}</span>
+                        )}
+                      </div>
+                      <div className="w-10 h-10 bg-zinc-800 rounded-2xl flex items-center justify-center text-lg">🚗</div>
+                    </div>
+
+                    {/* Session details */}
+                    <div className="bg-zinc-800/50 rounded-2xl p-3 space-y-2">
+                      {[
+                        ['Charger', req.charger_name || '–'],
+                        ['Rate', `₹${req.rate_per_kwh}/kWh`],
+                        ...(elapsedMins !== null ? [['Charging', `${elapsedMins} min`]] : []),
+                        ['Approved', req.approved_at ? timeAgo(req.approved_at) : '–'],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex justify-between items-center">
+                          <span className="text-zinc-500 text-[8px] font-bold uppercase">{k}</span>
+                          <span className="text-white text-[9px] font-black italic">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* View session + force stop */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => router.push(`/session/${req.id}`)}
+                        className="py-3.5 bg-zinc-800 border border-zinc-700 text-white font-black uppercase text-[9px] tracking-widest rounded-2xl active:scale-95 transition-all"
+                      >
+                        View Session
+                      </button>
+                      {req.status === 'active' && (
+                        <button
+                          onClick={() => handleForceStop(req)}
+                          disabled={actionLoading === req.id}
+                          className="py-3.5 bg-red-500/10 border border-red-500/30 text-red-400 font-black uppercase text-[9px] tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-40"
+                        >
+                          {actionLoading === req.id ? '...' : 'Force Stop'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}

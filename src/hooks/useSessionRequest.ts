@@ -5,9 +5,10 @@ import { createClient } from '@/utils/supabase/client';
 export type SessionStatus =
   | 'pending'
   | 'approved'
-  | 'denied'
+  | 'en_route'
   | 'active'
   | 'completed'
+  | 'denied'
   | 'cancelled';
 
 export interface SessionRequest {

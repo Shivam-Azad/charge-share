@@ -485,25 +485,12 @@ export default function Home() {
 
   const currentTotalCost = liveKwh * stationRate;
 
-  // Called when host approves → start charging
+  // ── CHANGED: when host approves, redirect to the live session page ──────────
   const handleSessionApproved = (sessionId: string) => {
-    const station = bookingStation;
-    const rate = station?.price_per_kwh || 11;
-    const hold = +(rate * (station?.power_kw || 7.4) * (120 / 60)).toFixed(2);
-    const name = station?.name || 'Unknown Station';
-
-    localStorage.setItem('currentStationRate', rate.toString());
-    localStorage.setItem('currentStationName', name);
-    localStorage.setItem('currentHoldAmount', hold.toString());
-    localStorage.setItem('currentSessionId', sessionId);
-
-    setStationRate(rate);
-    setStationName(name);
-    setStationHoldAmount(hold);
-    setActiveSessionId(sessionId);
-    setChargingStatus('CHARGING');
     setBookingStation(null);
+    router.push(`/session/${sessionId}`);
   };
+  // ───────────────────────────────────────────────────────────────────────────
 
   const resetSession = () => {
     localStorage.clear();
