@@ -121,10 +121,14 @@ const enrichRequest = async (req: any): Promise<SessionRequest> => {
   };
 
   // ── Load pending + active sessions ──────────────────────────────────────
-  const loadRequests = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('session_requests')
+ const loadRequests = async () => {
+  if (!user) return;
+
+  // Auto-cancel stale sessions (approved but driver never arrived in 30 min)
+  await supabase.rpc('cancel_stale_sessions');
+
+  const { data, error } = await supabase
+    .from('session_requests')
       .select('*')
       .eq('host_id', user.id)
       .in('status', ['pending', 'approved', 'en_route', 'active'])
