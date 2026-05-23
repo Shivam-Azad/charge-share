@@ -43,17 +43,15 @@ interface UseSessionRequestReturn {
 }
 
 export function useSessionRequest(userId: string | null): UseSessionRequestReturn {
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
   const [session, setSession] = useState<SessionRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── Poll DB for status changes (fallback for missed Realtime events) ──
-  // Runs every 3s while session is in a non-terminal state
   useEffect(() => {
     if (!session?.id) return;
-
     const terminal: SessionStatus[] = ['completed', 'denied', 'cancelled'];
     if (terminal.includes(session.status)) return;
 
@@ -63,44 +61,33 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
         .select('*')
         .eq('id', session.id)
         .single();
-
       if (data && data.status !== session.status) {
         setSession(data as SessionRequest);
       }
     };
 
     pollRef.current = setInterval(poll, 3000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [session?.id, session?.status]);
 
-  // ── Realtime subscription (primary, faster than polling) ──────────────
+  // ── Realtime subscription ─────────────────────────────────────────────
   useEffect(() => {
     if (!session?.id) return;
-
     const channel = supabase
       .channel(`session-hook-${session.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'session_requests',
-          filter: `id=eq.${session.id}`,
-        },
-        (payload) => {
-          setSession(prev =>
-            prev ? { ...prev, ...(payload.new as SessionRequest) } : null
-          );
-        }
-      )
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public',
+        table: 'session_requests', filter: `id=eq.${session.id}`,
+      }, (payload) => {
+        setSession(prev =>
+          prev ? { ...prev, ...(payload.new as SessionRequest) } : null
+        );
+      })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [session?.id]);
 
-  // ── Create a new session_request + wallet hold ────────────────────────
+  // ── Create session_request + wallet hold + auto-approve check ─────────
   const createRequest = useCallback(async ({
     chargerId, hostId, ratePerkWh, powerkW, timeLimitMins = 120,
   }: {
@@ -131,13 +118,29 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
         return null;
       }
 
-      // 2. Write session_request
+      // 2. Check host auto_approve setting
+      const { data: hostProfile } = await supabase
+        .from('profiles')
+        .select('auto_approve')
+        .eq('id', hostId)
+        .single();
+
+      const isAutoApprove = hostProfile?.auto_approve === true;
+      const initialStatus = isAutoApprove ? 'approved' : 'pending';
+      const approvedAt = isAutoApprove ? new Date().toISOString() : null;
+
+      // 3. Write session_request
       const { data: newSession, error: sessionErr } = await supabase
         .from('session_requests')
         .insert({
-          charger_id: chargerId, driver_id: userId, host_id: hostId,
-          status: 'pending', rate_per_kwh: ratePerkWh,
-          hold_amount: holdAmount, time_limit_mins: timeLimitMins,
+          charger_id: chargerId,
+          driver_id: userId,
+          host_id: hostId,
+          status: initialStatus,
+          approved_at: approvedAt,
+          rate_per_kwh: ratePerkWh,
+          hold_amount: holdAmount,
+          time_limit_mins: timeLimitMins,
         })
         .select('*').single();
 
@@ -147,25 +150,40 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
         return null;
       }
 
-      // 3. Apply wallet hold (balance unchanged — held increases)
+      // 4. Apply wallet hold
       await supabase.from('wallets').update({
         held: wallet.held + holdAmount,
         updated_at: new Date().toISOString(),
       }).eq('user_id', userId);
 
-      // 4. Hold transaction
+      // 5. Hold transaction
       await supabase.from('wallet_transactions').insert({
         user_id: userId, type: 'hold', amount: -holdAmount,
         description: 'Pre-auth hold for session', session_id: newSession.id,
       });
 
-      // 5. Notify host
-      await supabase.from('notifications').insert({
-        user_id: hostId, type: 'session_request', title: 'New Charging Request',
-        body: 'A driver wants to charge at your station.',
-        data: { session_id: newSession.id, charger_id: chargerId, driver_id: userId, hold_amount: holdAmount, rate_per_kwh: ratePerkWh },
-        read: false,
-      });
+      // 6. Notify host (skip if auto-approved — no action needed from host)
+      if (!isAutoApprove) {
+        await supabase.from('notifications').insert({
+          user_id: hostId, type: 'session_request',
+          title: 'New Charging Request',
+          body: 'A driver wants to charge at your station.',
+          data: {
+            session_id: newSession.id, charger_id: chargerId,
+            driver_id: userId, hold_amount: holdAmount, rate_per_kwh: ratePerkWh,
+          },
+          read: false,
+        });
+      } else {
+        // Notify driver that session was auto-approved
+        await supabase.from('notifications').insert({
+          user_id: userId, type: 'session_approved',
+          title: 'Session Auto-Approved!',
+          body: 'Your session was instantly approved. Head to the charger.',
+          data: { session_id: newSession.id },
+          read: false,
+        });
+      }
 
       setSession(newSession as SessionRequest);
       setLoading(false);
@@ -178,7 +196,7 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
     }
   }, [userId]);
 
-  // ── Cancel a pending request + release hold ───────────────────────────
+  // ── Cancel pending request + release hold ─────────────────────────────
   const cancelRequest = useCallback(async (sessionId: string) => {
     if (!userId) return;
 
@@ -189,7 +207,9 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
 
     await supabase.from('session_requests').update({ status: 'cancelled' }).eq('id', sessionId);
 
-    const { data: wallet } = await supabase.from('wallets').select('held').eq('user_id', userId).single();
+    const { data: wallet } = await supabase
+      .from('wallets').select('held').eq('user_id', userId).single();
+
     if (wallet) {
       await supabase.from('wallets').update({
         held: Math.max(0, wallet.held - existing.hold_amount),

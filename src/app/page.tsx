@@ -9,7 +9,6 @@ import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useSessionRequest } from '@/hooks/useSessionRequest';
 
-// Dynamically imported — contains Leaflet which is browser-only
 const PublicDirectionsModal = dynamic<{
   station: any;
   userLocation: { lat: number; lng: number } | null;
@@ -19,7 +18,6 @@ const PublicDirectionsModal = dynamic<{
   { ssr: false }
 );
 
-// ─── DISTANCE CALC ──────────────────────────────────────────────────────────
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -28,10 +26,8 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── BOOKING MODAL (private P2P stations only) ───────────────────────────────
-function BookingModal({
-  station, userId, onApproved, onClose,
-}: {
+// ─── BOOKING MODAL ───────────────────────────────────────────────────────────
+function BookingModal({ station, userId, onApproved, onClose }: {
   station: any; userId: string; onApproved: (sessionId: string) => void; onClose: () => void;
 }) {
   const { session, loading, error, createRequest, cancelRequest } = useSessionRequest(userId);
@@ -69,103 +65,97 @@ function BookingModal({
   const insufficientBalance = walletAvailable !== null && walletAvailable < holdAmount;
 
   return (
-    <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
-      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-[150] flex items-end justify-center p-4" style={{background:'rgba(0,0,0,0.85)', backdropFilter:'blur(20px)'}}>
+      <div className="w-full max-w-sm rounded-[32px] overflow-hidden animate-in slide-in-from-bottom-8 duration-300"
+        style={{background:'rgba(255,255,255,0.05)', backdropFilter:'blur(24px)', border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 -8px 40px rgba(0,0,0,0.6)'}}>
 
         {step === 'confirm' && (
-          <div className="p-6 space-y-4 animate-in fade-in duration-300">
-            <div className="text-center mb-2">
-              <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-3">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                <span className="text-emerald-500 text-[9px] font-black uppercase tracking-widest">Private P2P Charger</span>
+          <div className="p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm"
+                  style={{background:'rgba(16,185,129,0.15)', border:'1px solid rgba(16,185,129,0.3)'}}>⚡</div>
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-widest" style={{color:'#10b981'}}>P2P Private</p>
+                  <h2 className="text-white font-black text-base leading-tight">{station.name}</h2>
+                </div>
               </div>
-              <h2 className="text-white font-black italic uppercase text-xl mt-1">{station.name}</h2>
-              <p className="text-zinc-500 text-[9px] font-bold mt-0.5">{station.address || 'India'}</p>
+              <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors text-lg">✕</button>
             </div>
 
-            <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2">
-              {[
-                ['Rate', `₹${rate}/kWh`],
-                ['Power', `${power} kW`],
-                ['Time Limit', `${timeLimitMins} mins`],
-                ['Plug Type', (station.plug_types || ['Type 2']).join(', ')],
-              ].map(([k, v]) => (
+            {/* Details */}
+            <div className="rounded-2xl p-4 space-y-2.5" style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
+              {[['Rate', `₹${rate}/kWh`], ['Power', `${power} kW`], ['Time Limit', `${timeLimitMins} mins`], ['Plug', (station.plug_types || ['Type 2']).join(', ')]].map(([k, v]) => (
                 <div key={k} className="flex justify-between items-center">
-                  <span className="text-zinc-500 text-[9px] font-bold uppercase">{k}</span>
-                  <span className="text-white text-[10px] font-black italic">{v}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'#71717a'}}>{k}</span>
+                  <span className="text-white text-[10px] font-bold">{v}</span>
                 </div>
               ))}
             </div>
 
-            <div className="bg-orange-500/5 border border-orange-500/20 p-3 rounded-xl space-y-1">
-              <div className="flex justify-between items-center">
-                <p className="text-orange-300 text-[9px] font-black uppercase tracking-wide">Pre-Auth Hold</p>
-                <p className="text-orange-400 font-black text-sm">₹{holdAmount}</p>
+            {/* Hold */}
+            <div className="rounded-2xl p-3.5 flex justify-between items-center" style={{background:'rgba(251,146,60,0.08)', border:'1px solid rgba(251,146,60,0.2)'}}>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider" style={{color:'#fb923c'}}>Pre-Auth Hold</p>
+                <p className="text-zinc-500 text-[8px] font-bold mt-0.5">Released when session ends</p>
               </div>
-              <p className="text-zinc-600 text-[8px] font-bold">Held from wallet now · released when session ends</p>
+              <p className="font-black text-lg" style={{color:'#fb923c'}}>₹{holdAmount}</p>
             </div>
 
+            {/* Balance */}
             {walletAvailable !== null && (
-              <div className={`flex justify-between items-center px-3 py-2 rounded-xl border ${insufficientBalance ? 'bg-red-500/5 border-red-500/20' : 'bg-zinc-800/30 border-zinc-700'}`}>
-                <span className="text-zinc-500 text-[9px] font-bold uppercase">Your Balance</span>
+              <div className="rounded-xl p-3 flex justify-between items-center"
+                style={{background: insufficientBalance ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${insufficientBalance ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.07)'}`}}>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Your Balance</span>
                 <span className={`font-black text-sm ${insufficientBalance ? 'text-red-400' : 'text-white'}`}>₹{walletAvailable}</span>
               </div>
             )}
 
             {insufficientBalance && (
-              <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-xl">
-                <p className="text-red-400 text-[9px] font-bold text-center">
-                  Insufficient balance. <Link href="/wallet" className="underline font-black">Top up wallet →</Link>
-                </p>
-              </div>
+              <p className="text-center text-[9px] font-bold" style={{color:'#f87171'}}>
+                Insufficient balance. <Link href="/wallet" className="underline font-black">Top up →</Link>
+              </p>
             )}
 
-            {error && <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider">⚠ {error}</p>}
+            {error && <p className="text-[9px] font-bold uppercase tracking-wider" style={{color:'#f87171'}}>⚠ {error}</p>}
 
             <button onClick={handleBook} disabled={loading || !!insufficientBalance}
-              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-              {loading ? 'Sending Request...' : 'Request Session →'}
+              className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl transition-all active:scale-95 disabled:opacity-40"
+              style={{background:'#10b981', color:'#000', boxShadow:'0 0 24px rgba(16,185,129,0.35)'}}>
+              {loading ? 'Sending...' : 'Request Session →'}
             </button>
-            <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
           </div>
         )}
 
         {step === 'waiting' && (
-          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
-            <div className="relative mx-auto w-20 h-20">
-              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-              <div className="absolute inset-3 rounded-full bg-emerald-500/10 flex items-center justify-center text-2xl">⚡</div>
+          <div className="p-8 text-center space-y-5">
+            <div className="relative w-20 h-20 mx-auto">
+              <div className="absolute inset-0 rounded-full border-4 border-t-emerald-500 animate-spin" style={{borderColor:'rgba(16,185,129,0.2)', borderTopColor:'#10b981'}} />
+              <div className="absolute inset-3 rounded-full flex items-center justify-center text-2xl" style={{background:'rgba(16,185,129,0.1)'}}>⚡</div>
             </div>
             <div>
-              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Sent</p>
-              <h2 className="text-white font-black italic uppercase text-xl">Waiting for Host</h2>
-              <p className="text-zinc-500 text-[10px] font-bold mt-2">The host is being notified. Usually under a minute.</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1" style={{color:'#10b981'}}>Request Sent</p>
+              <h2 className="text-white font-black text-xl">Waiting for Host</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-1">Usually under a minute</p>
             </div>
-            <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2 text-left">
-              <div className="flex justify-between">
-                <span className="text-zinc-500 text-[9px] font-bold uppercase">Station</span>
-                <span className="text-white text-[9px] font-black">{station.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500 text-[9px] font-bold uppercase">Hold</span>
-                <span className="text-orange-400 text-[9px] font-black">₹{holdAmount} reserved</span>
-              </div>
-            </div>
-            <button onClick={handleCancel} className="w-full py-3 text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-white transition-colors">
+            <button onClick={handleCancel} className="text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-white transition-colors">
               Cancel Request
             </button>
           </div>
         )}
 
         {step === 'denied' && (
-          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
-            <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-3xl">✕</div>
+          <div className="p-8 text-center space-y-5">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl"
+              style={{background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.2)'}}>✕</div>
             <div>
-              <p className="text-red-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Denied</p>
-              <h2 className="text-white font-black italic uppercase text-xl">Host Declined</h2>
-              <p className="text-zinc-500 text-[10px] font-bold mt-2">Your wallet hold has been released.</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1 text-red-400">Declined</p>
+              <h2 className="text-white font-black text-xl">Host Declined</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-1">Your hold has been released.</p>
             </div>
-            <button onClick={onClose} className="w-full py-4 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
+            <button onClick={onClose} className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl"
+              style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
               Back to Stations
             </button>
           </div>
@@ -194,13 +184,8 @@ function FinalPaymentModal({ totalAmount, holdAmount, sessionId, userId, onCompl
           held: Math.max(0, wallet.held - holdAmount),
           updated_at: new Date().toISOString(),
         }).eq('user_id', userId);
-        await supabase.from('wallet_transactions').insert({
-          user_id: userId, type: 'charge', amount: -totalAmount,
-          description: 'Session payment', session_id: sessionId,
-        });
-        await supabase.from('session_requests').update({
-          status: 'completed', ended_at: new Date().toISOString(), amount_charged: totalAmount,
-        }).eq('id', sessionId);
+        await supabase.from('wallet_transactions').insert({ user_id: userId, type: 'charge', amount: -totalAmount, description: 'Session payment', session_id: sessionId });
+        await supabase.from('session_requests').update({ status: 'completed', ended_at: new Date().toISOString(), amount_charged: totalAmount }).eq('id', sessionId);
       }
     }
     setTimeout(() => setStep('feedback'), 1200);
@@ -221,57 +206,71 @@ function FinalPaymentModal({ totalAmount, holdAmount, sessionId, userId, onCompl
     setStep('success');
   };
 
+  const modalStyle = {background:'rgba(15,15,20,0.98)', backdropFilter:'blur(24px)', border:'1px solid rgba(255,255,255,0.08)'};
+
   return (
-    <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[100] flex items-center justify-center p-5">
-      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-5" style={{background:'rgba(0,0,0,0.9)', backdropFilter:'blur(20px)'}}>
+      <div className="w-full max-w-sm rounded-[32px] overflow-hidden" style={modalStyle}>
         {step === 'bill' && (
           <div className="p-6 animate-in fade-in zoom-in duration-300">
-            <h2 className="text-white font-black italic uppercase text-center mb-6 tracking-tighter text-xl">Session Complete</h2>
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                <span>Total Cost</span><span className="text-white italic">₹{totalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] text-orange-400 font-bold uppercase tracking-widest">
-                <span>Pre-Auth Hold</span><span className="italic">-₹{holdAmount.toFixed(2)}</span>
-              </div>
-              <div className="h-px bg-zinc-800 my-2" />
-              <div className="flex justify-between items-center py-2">
-                <span className="text-zinc-400 text-[12px] font-black uppercase">Amount Due</span>
-                <span className="text-4xl font-black text-white italic">₹{restAmount.toFixed(2)}</span>
-              </div>
-              <p className="text-zinc-600 text-[8px] font-bold text-center">Deducted from your ChargeShare wallet</p>
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl"
+                style={{background:'rgba(16,185,129,0.15)', border:'1px solid rgba(16,185,129,0.3)'}}>✓</div>
+              <h2 className="text-white font-black text-xl">Session Complete</h2>
             </div>
-            <button onClick={handleSettle} className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all">
+            <div className="rounded-2xl p-4 space-y-3 mb-5" style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)'}}>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-zinc-500 font-bold uppercase tracking-widest">Total Cost</span>
+                <span className="text-white font-black">₹{totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="font-bold uppercase tracking-widest" style={{color:'#fb923c'}}>Pre-Auth Hold</span>
+                <span className="font-black" style={{color:'#fb923c'}}>-₹{holdAmount.toFixed(2)}</span>
+              </div>
+              <div className="h-px" style={{background:'rgba(255,255,255,0.06)'}} />
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-zinc-400 text-[11px] font-black uppercase">Due Now</span>
+                <span className="text-3xl font-black text-white">₹{restAmount.toFixed(2)}</span>
+              </div>
+            </div>
+            <button onClick={handleSettle} className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl"
+              style={{background:'#10b981', color:'#000', boxShadow:'0 0 24px rgba(16,185,129,0.3)'}}>
               Confirm & Pay →
             </button>
           </div>
         )}
         {step === 'processing' && (
           <div className="py-16 text-center">
-            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Processing Payment...</p>
+            <div className="w-14 h-14 rounded-full border-4 border-t-emerald-500 animate-spin mx-auto mb-5"
+              style={{borderColor:'rgba(16,185,129,0.15)', borderTopColor:'#10b981'}} />
+            <p className="text-white font-black uppercase text-xs tracking-widest animate-pulse">Processing...</p>
           </div>
         )}
         {step === 'feedback' && (
           <div className="p-6 text-center animate-in slide-in-from-right duration-500">
-            <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Rate this session</p>
-            <h3 className="text-white text-xl font-black italic uppercase mb-5">How was it?</h3>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1" style={{color:'#10b981'}}>Rate this session</p>
+            <h3 className="text-white text-xl font-black mb-5">How was it?</h3>
             <div className="flex justify-center gap-3 mb-6">
               {[1,2,3,4,5].map(star => (
                 <button key={star} onClick={() => setRating(star)}
-                  className={`text-3xl transition-all ${rating >= star ? 'grayscale-0 scale-110' : 'grayscale opacity-30'}`}>⚡</button>
+                  className={`text-3xl transition-all active:scale-90 ${rating >= star ? 'opacity-100 scale-110' : 'opacity-25'}`}>⭐</button>
               ))}
             </div>
-            <button onClick={() => submitRating(rating)} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-xl mb-2">Submit Review</button>
+            <button onClick={() => submitRating(rating)} className="w-full py-4 font-black uppercase text-[10px] tracking-widest rounded-2xl mb-2"
+              style={{background:'#10b981', color:'#000'}}>Submit</button>
             <button onClick={() => submitRating(0)} className="w-full py-3 text-zinc-600 font-bold uppercase text-[9px] tracking-widest hover:text-white">Skip</button>
           </div>
         )}
         {step === 'success' && (
           <div className="p-8 text-center animate-in zoom-in duration-500">
-            <div className="w-24 h-24 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-4xl font-black shadow-[0_0_40px_rgba(16,185,129,0.3)]">✓</div>
-            <h3 className="text-white font-black italic uppercase text-2xl tracking-tighter mb-2">All Done!</h3>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-8">Session Closed · Wallet Updated</p>
-            <button onClick={onComplete} className="w-full py-5 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-2xl">Back to Home</button>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl font-black"
+              style={{background:'#10b981', color:'#000', boxShadow:'0 0 40px rgba(16,185,129,0.4)'}}>✓</div>
+            <h3 className="text-white font-black text-2xl mb-1">All Done!</h3>
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-7">Session Closed · Wallet Updated</p>
+            <button onClick={onComplete} className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl"
+              style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
+              Back to Home
+            </button>
           </div>
         )}
       </div>
@@ -279,7 +278,62 @@ function FinalPaymentModal({ totalAmount, holdAmount, sessionId, userId, onCompl
   );
 }
 
-// ─── MAIN HOME PAGE ──────────────────────────────────────────────────────────
+// ─── STATION CARD ─────────────────────────────────────────────────────────────
+function StationCard({ station, onBook, onGo }: { station: any; onBook: () => void; onGo: () => void }) {
+  const isPrivate = station.source === 'private';
+  return (
+    <div className="rounded-[24px] p-4 flex justify-between items-center transition-all active:scale-[0.98]"
+      style={{
+        background: isPrivate ? 'rgba(255,255,255,0.04)' : 'rgba(59,130,246,0.04)',
+        border: `1px solid ${isPrivate ? 'rgba(255,255,255,0.08)' : 'rgba(59,130,246,0.15)'}`,
+        backdropFilter: 'blur(12px)',
+      }}>
+      <div className="flex-1 min-w-0 mr-3">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background: isPrivate ? '#10b981' : '#60a5fa'}} />
+          <span className="text-[8px] font-black uppercase tracking-widest" style={{color: isPrivate ? '#10b981' : '#60a5fa'}}>
+            {isPrivate ? 'P2P Private' : 'Public'}
+          </span>
+        </div>
+        <h3 className="text-white font-black text-sm tracking-tight truncate mb-1">{station.name}</h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          {station.plug_types?.length > 0 && (
+            <span className="text-[8px] font-bold uppercase text-zinc-600">{station.plug_types.slice(0,2).join(', ')}</span>
+          )}
+          {station.power_kw && <span className="text-[8px] font-bold text-zinc-700">· {station.power_kw}kW</span>}
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="font-black text-sm" style={{color: isPrivate ? '#10b981' : '#60a5fa'}}>
+            {isPrivate ? `₹${station.price_per_kwh || 11}/kWh` : (station.price_per_kwh ? `₹${station.price_per_kwh}/kWh` : 'Free')}
+          </span>
+          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full text-zinc-500"
+            style={{background:'rgba(255,255,255,0.05)'}}>
+            {station.distance} km
+          </span>
+          {isPrivate && station.is_available === false && (
+            <span className="text-[8px] font-black uppercase text-red-400">Busy</span>
+          )}
+        </div>
+      </div>
+
+      {isPrivate ? (
+        <button onClick={onBook} disabled={station.is_available === false}
+          className="px-4 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 disabled:opacity-40 flex-shrink-0"
+          style={{background:'#10b981', color:'#000', boxShadow:'0 0 16px rgba(16,185,129,0.3)'}}>
+          BOOK
+        </button>
+      ) : (
+        <button onClick={onGo}
+          className="px-4 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all active:scale-95 flex-shrink-0"
+          style={{background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)', color:'#60a5fa'}}>
+          GO →
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function Home() {
   const router = useRouter();
   const supabase = createClient();
@@ -298,7 +352,6 @@ export default function Home() {
   const [stationRate, setStationRate] = useState(11);
   const [stationHoldAmount, setStationHoldAmount] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
   const [allStations, setAllStations] = useState<any[]>([]);
   const [filteredStations, setFilteredStations] = useState<any[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -318,21 +371,20 @@ export default function Home() {
 
   useEffect(() => {
     const savedStatus = localStorage.getItem('chargingStatus') as any;
-    const savedKwh    = localStorage.getItem('liveKwh');
-    const savedBat    = localStorage.getItem('batteryLevel');
-    const savedRange  = localStorage.getItem('range');
-    const savedName   = localStorage.getItem('currentStationName');
-    const savedRate   = localStorage.getItem('currentStationRate');
-    const savedHold   = localStorage.getItem('currentHoldAmount');
-    const savedSessId = localStorage.getItem('currentSessionId');
-
     setChargingStatus(savedStatus || 'IDLE');
-    if (savedKwh)    setLiveKwh(parseFloat(savedKwh));
-    if (savedBat)    setBatteryLevel(parseFloat(savedBat));
-    if (savedRange)  setRange(parseFloat(savedRange));
-    if (savedName)   setStationName(savedName);
-    if (savedRate)   setStationRate(parseInt(savedRate));
-    if (savedHold)   setStationHoldAmount(parseFloat(savedHold));
+    const savedKwh = localStorage.getItem('liveKwh');
+    const savedBat = localStorage.getItem('batteryLevel');
+    const savedRange = localStorage.getItem('range');
+    const savedName = localStorage.getItem('currentStationName');
+    const savedRate = localStorage.getItem('currentStationRate');
+    const savedHold = localStorage.getItem('currentHoldAmount');
+    const savedSessId = localStorage.getItem('currentSessionId');
+    if (savedKwh) setLiveKwh(parseFloat(savedKwh));
+    if (savedBat) setBatteryLevel(parseFloat(savedBat));
+    if (savedRange) setRange(parseFloat(savedRange));
+    if (savedName) setStationName(savedName);
+    if (savedRate) setStationRate(parseInt(savedRate));
+    if (savedHold) setStationHoldAmount(parseFloat(savedHold));
     if (savedSessId) setActiveSessionId(savedSessId);
 
     if ('geolocation' in navigator) {
@@ -343,35 +395,21 @@ export default function Home() {
     }
   }, []);
 
-  // Fetch both private (DB) + public (OCM) via /api/chargers
   useEffect(() => {
     if (!userLocation) return;
     setLoadingStations(true);
-
     fetch(`/api/chargers?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=25`)
       .then(r => r.json())
       .then(({ local, external }) => {
         const process = (c: any, source: 'private' | 'public') => {
-          const lat = typeof c.latitude === 'number' ? c.latitude
-            : parseFloat(c.latitude ?? c.AddressInfo?.Latitude ?? '');
-          const lng = typeof c.longitude === 'number' ? c.longitude
-            : parseFloat(c.longitude ?? c.AddressInfo?.Longitude ?? '');
+          const lat = typeof c.latitude === 'number' ? c.latitude : parseFloat(c.latitude ?? c.AddressInfo?.Latitude ?? '');
+          const lng = typeof c.longitude === 'number' ? c.longitude : parseFloat(c.longitude ?? c.AddressInfo?.Longitude ?? '');
           if (isNaN(lat) || isNaN(lng)) return null;
           const dist = haversine(userLocation.lat, userLocation.lng, lat, lng);
-          return {
-            ...c, lat, lng, source,
-            name:         c.name ?? c.AddressInfo?.Title ?? 'EV Station',
-            address:      c.address ?? c.AddressInfo?.Town ?? c.AddressInfo?.AddressLine1 ?? '',
-            power_kw:     c.power_kw ?? c.Connections?.[0]?.PowerKW ?? null,
-            price_per_kwh: source === 'public' ? null : (c.price_per_kwh ?? null),
-            plug_types:   c.plug_types ?? [],
-            distanceNum:  dist,
-            distance:     dist.toFixed(1),
-          };
+          return { ...c, lat, lng, source, name: c.name ?? c.AddressInfo?.Title ?? 'EV Station', address: c.address ?? c.AddressInfo?.Town ?? '', power_kw: c.power_kw ?? c.Connections?.[0]?.PowerKW ?? null, price_per_kwh: source === 'public' ? null : (c.price_per_kwh ?? null), plug_types: c.plug_types ?? [], distanceNum: dist, distance: dist.toFixed(1) };
         };
-
-        const priv = (local    ?? []).map((c: any) => process(c, 'private')).filter(Boolean);
-        const pub  = (external ?? []).map((c: any) => process(c, 'public')).filter(Boolean);
+        const priv = (local ?? []).map((c: any) => process(c, 'private')).filter(Boolean);
+        const pub = (external ?? []).map((c: any) => process(c, 'public')).filter(Boolean);
         setAllStations([...priv, ...pub].sort((a: any, b: any) => a.distanceNum - b.distanceNum));
         setLoadingStations(false);
       })
@@ -380,11 +418,11 @@ export default function Home() {
 
   useEffect(() => {
     let f = [...allStations];
-    if      (activeFilter === 'Private')   f = f.filter(c => c.source === 'private');
-    else if (activeFilter === 'Public')    f = f.filter(c => c.source === 'public');
-    else if (activeFilter === 'Fast')      f = f.filter(c => (c.power_kw || 0) >= 22);
+    if (activeFilter === 'Private') f = f.filter(c => c.source === 'private');
+    else if (activeFilter === 'Public') f = f.filter(c => c.source === 'public');
+    else if (activeFilter === 'Fast') f = f.filter(c => (c.power_kw || 0) >= 22);
     else if (activeFilter === 'Available') f = f.filter(c => c.is_available !== false);
-    else if (activeFilter === 'Free')      f = f.filter(c => c.price_per_kwh === null || c.price_per_kwh === 0);
+    else if (activeFilter === 'Free') f = f.filter(c => c.price_per_kwh === null || c.price_per_kwh === 0);
     setFilteredStations(f);
   }, [allStations, activeFilter]);
 
@@ -433,79 +471,83 @@ export default function Home() {
     window.location.reload();
   };
 
-  if (chargingStatus === null) return <div className="min-h-screen bg-black" />;
+  if (chargingStatus === null) return <div className="min-h-screen" style={{background:'#050508'}} />;
 
   const privateCount = allStations.filter(s => s.source === 'private').length;
-  const publicCount  = allStations.filter(s => s.source === 'public').length;
+  const publicCount = allStations.filter(s => s.source === 'public').length;
 
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center pb-40">
+    <main className="min-h-screen flex flex-col pb-40" style={{background:'#050508'}}>
 
       {publicNavStation && (
-        <PublicDirectionsModal
-          station={publicNavStation}
-          userLocation={userLocation}
-          onClose={() => setPublicNavStation(null)}
-        />
+        <PublicDirectionsModal station={publicNavStation} userLocation={userLocation} onClose={() => setPublicNavStation(null)} />
       )}
 
       {bookingStation && user && (
-        <BookingModal
-          station={bookingStation}
-          userId={user.id}
-          onApproved={handleSessionApproved}
-          onClose={() => setBookingStation(null)}
-        />
+        <BookingModal station={bookingStation} userId={user.id} onApproved={handleSessionApproved} onClose={() => setBookingStation(null)} />
       )}
 
       {bookingStation && !user && (
-        <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
-          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] p-8 text-center space-y-5">
-            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-2xl">⚡</div>
-            <h2 className="text-white font-black italic uppercase text-xl">Sign In to Book</h2>
+        <div className="fixed inset-0 z-[150] flex items-end justify-center p-4" style={{background:'rgba(0,0,0,0.85)', backdropFilter:'blur(20px)'}}>
+          <div className="w-full max-w-sm rounded-[32px] p-8 text-center space-y-5 animate-in slide-in-from-bottom-8 duration-300"
+            style={{background:'rgba(255,255,255,0.05)', backdropFilter:'blur(24px)', border:'1px solid rgba(255,255,255,0.1)'}}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto text-2xl"
+              style={{background:'rgba(16,185,129,0.15)', border:'1px solid rgba(16,185,129,0.3)'}}>⚡</div>
+            <h2 className="text-white font-black text-xl">Sign In to Book</h2>
             <p className="text-zinc-500 text-[10px] font-bold">You need an account to request a private charging session.</p>
-            <Link href="/login" className="block w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
-              Sign In / Register →
-            </Link>
+            <Link href="/login" className="block w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl"
+              style={{background:'#10b981', color:'#000'}}>Sign In / Register →</Link>
             <button onClick={() => setBookingStation(null)} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="w-full max-w-md px-5 pt-12">
+      <div className="w-full max-w-md px-5 pt-12 mx-auto">
 
-        <div className="flex justify-between items-start mb-8">
-          <div className="w-10" />
-          <div className="text-center">
-            <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">
-              {userName ? `Hey, ${userName.split(' ')[0]}` : 'ChargeShare'}
-            </h1>
-            <p className={`text-[10px] uppercase tracking-[0.3em] mt-1 font-bold ${chargingStatus === 'CHARGING' ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}`}>
-              ● {chargingStatus === 'CHARGING' ? 'Charging Live' : 'System Ready'}
+        {/* Header */}
+        <div className="flex justify-between items-center mb-7">
+          <div className="flex flex-col">
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-0.5" style={{color:'rgba(255,255,255,0.3)'}}>
+              {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
             </p>
+            <h1 className="text-xl font-black text-white tracking-tight">
+              {userName ? `Hey, ${userName.split(' ')[0]} 👋` : 'ChargeShare'}
+            </h1>
           </div>
-          <button onClick={resetSession} className="text-[10px] text-zinc-700 font-bold uppercase border border-zinc-800 px-2 py-1 rounded-md hover:text-white transition-colors">
-            Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${chargingStatus === 'CHARGING' ? 'animate-pulse' : ''}`}
+              style={{background: chargingStatus === 'CHARGING' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: chargingStatus === 'CHARGING' ? '#10b981' : 'rgba(255,255,255,0.3)', border: `1px solid ${chargingStatus === 'CHARGING' ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'}`}}>
+              {chargingStatus === 'CHARGING' ? '⚡ Live' : '● Ready'}
+            </span>
+            <button onClick={resetSession} className="text-[9px] font-bold uppercase px-2 py-1.5 rounded-lg transition-colors"
+              style={{color:'rgba(255,255,255,0.2)', border:'1px solid rgba(255,255,255,0.06)'}}>
+              Reset
+            </button>
+          </div>
         </div>
 
+        {/* Battery Card */}
         <BatteryCard level={Math.floor(batteryLevel)} range={Math.floor(range)} isCharging={chargingStatus === 'CHARGING'} />
 
-        <div className="mt-8 min-h-[320px]">
+        {/* Main Content */}
+        <div className="mt-6">
           {chargingStatus === 'IDLE' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
+              {/* Section header */}
               <div className="flex justify-between items-center mb-3 px-1">
-                <h3 className="text-zinc-400 text-[10px] uppercase tracking-widest font-bold">Stations Near You</h3>
-                <div className="flex items-center gap-2">
+                <h3 className="text-[10px] uppercase tracking-widest font-black" style={{color:'rgba(255,255,255,0.4)'}}>
+                  Stations Near You
+                </h3>
+                <div className="flex items-center gap-3">
                   {privateCount > 0 && (
-                    <span className="text-emerald-500 text-[9px] font-black uppercase flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />{privateCount} Private
+                    <span className="text-[8px] font-black uppercase flex items-center gap-1" style={{color:'#10b981'}}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{background:'#10b981'}} />{privateCount} Private
                     </span>
                   )}
                   {publicCount > 0 && (
-                    <span className="text-blue-400 text-[9px] font-black uppercase flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />{publicCount} Public
+                    <span className="text-[8px] font-black uppercase flex items-center gap-1" style={{color:'#60a5fa'}}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{background:'#60a5fa'}} />{publicCount} Public
                     </span>
                   )}
                 </div>
@@ -515,126 +557,103 @@ export default function Home() {
 
               <div className="mt-3">
                 {loadingStations ? (
-                  <div className="p-10 border border-dashed border-zinc-900 rounded-[32px] text-center">
-                    <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">Scanning nearby stations...</p>
+                  <div className="py-12 text-center rounded-[28px]" style={{border:'1px dashed rgba(255,255,255,0.06)'}}>
+                    <div className="w-6 h-6 rounded-full border-2 border-t-emerald-500 animate-spin mx-auto mb-3"
+                      style={{borderColor:'rgba(16,185,129,0.2)', borderTopColor:'#10b981'}} />
+                    <p className="text-[9px] uppercase font-black tracking-widest" style={{color:'rgba(255,255,255,0.2)'}}>Scanning nearby...</p>
                   </div>
                 ) : filteredStations.length === 0 ? (
-                  <div className="p-10 border border-dashed border-zinc-900 rounded-[32px] text-center">
-                    <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">
+                  <div className="py-12 text-center rounded-[28px]" style={{border:'1px dashed rgba(255,255,255,0.06)'}}>
+                    <p className="text-[9px] uppercase font-black tracking-widest" style={{color:'rgba(255,255,255,0.2)'}}>
                       {allStations.length === 0 ? 'Scanning 25km radius...' : `No ${activeFilter} stations nearby`}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto no-scrollbar">
-                    {filteredStations.map((station, idx) => {
-                      const isPrivate = station.source === 'private';
-                      return (
-                        <div key={station.id ?? idx} className={`border p-5 rounded-[28px] flex justify-between items-center ${
-                          isPrivate ? 'bg-zinc-900/60 border-zinc-800' : 'bg-zinc-900/40 border-blue-900/30'
-                        }`}>
-                          <div className="flex-1 min-w-0 mr-3">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isPrivate ? 'bg-emerald-500' : 'bg-blue-400'}`} />
-                              <span className={`text-[8px] font-black uppercase tracking-widest ${isPrivate ? 'text-emerald-500' : 'text-blue-400'}`}>
-                                {isPrivate ? 'P2P Private' : 'Public'}
-                              </span>
-                            </div>
-                            <h3 className="text-white font-black italic uppercase text-sm tracking-tight truncate">{station.name}</h3>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              {station.plug_types?.length > 0 && (
-                                <span className="text-zinc-500 text-[9px] font-bold uppercase">{station.plug_types.join(', ')}</span>
-                              )}
-                              {station.power_kw && <span className="text-zinc-600 text-[8px] font-bold">· {station.power_kw}kW</span>}
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              {isPrivate ? (
-                                <p className="text-emerald-400 text-sm font-black">₹{station.price_per_kwh || 11}/kWh</p>
-                              ) : (
-                                <p className="text-blue-400 text-sm font-black">
-                                  {station.price_per_kwh ? `₹${station.price_per_kwh}/kWh` : 'Free / Operator rates'}
-                                </p>
-                              )}
-                              <span className="text-zinc-600 text-[9px] font-black uppercase bg-zinc-800/60 px-2 py-0.5 rounded-full">
-                                {station.distance} km
-                              </span>
-                              {isPrivate && station.is_available === false && (
-                                <span className="text-red-400 text-[8px] font-black uppercase">Busy</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {isPrivate ? (
-                            <button
-                              onClick={() => setBookingStation(station)}
-                              disabled={station.is_available === false}
-                              className="bg-emerald-500 text-black px-4 py-3 rounded-2xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                            >
-                              BOOK
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setPublicNavStation(station)}
-                              className="bg-blue-500 text-white px-4 py-3 rounded-2xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all flex-shrink-0 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                            >
-                              GO →
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-2.5 max-h-[420px] overflow-y-auto no-scrollbar">
+                    {filteredStations.map((station, idx) => (
+                      <StationCard
+                        key={station.id ?? idx}
+                        station={station}
+                        onBook={() => setBookingStation(station)}
+                        onGo={() => setPublicNavStation(station)}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="bg-zinc-900 border border-emerald-500/30 p-7 rounded-[40px] shadow-[0_0_50px_rgba(16,185,129,0.12)] animate-in zoom-in-95">
-              <div className="flex justify-between items-center mb-7">
+            /* Active Charging Card */
+            <div className="rounded-[28px] p-6 animate-in zoom-in-95 duration-300"
+              style={{background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.2)', backdropFilter:'blur(16px)', boxShadow:'0 0 40px rgba(16,185,129,0.08)'}}>
+              <div className="flex justify-between items-start mb-6">
                 <div>
-                  <p className="text-emerald-500 text-[9px] font-black uppercase mb-1">Active Session</p>
-                  <h3 className="text-white text-xl font-black italic uppercase">{stationName}</h3>
-                  <p className="text-zinc-500 text-[10px] font-bold">RATE: ₹{stationRate}/kWh</p>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] mb-1" style={{color:'#10b981'}}>Active Session</p>
+                  <h3 className="text-white text-lg font-black tracking-tight">{stationName}</h3>
+                  <p className="text-[9px] font-bold mt-0.5" style={{color:'rgba(255,255,255,0.3)'}}>₹{stationRate}/kWh</p>
                 </div>
-                <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 animate-pulse border border-emerald-500/20">⚡</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-7">
-                <div className="bg-zinc-800/50 p-5 rounded-3xl border border-white/5">
-                  <p className="text-zinc-500 text-[8px] uppercase font-black mb-1">Energy Added</p>
-                  <p className="text-2xl font-black text-white italic">{liveKwh.toFixed(1)} <span className="text-[10px]">kWh</span></p>
-                </div>
-                <div className="bg-zinc-800/50 p-5 rounded-3xl border border-white/5">
-                  <p className="text-zinc-500 text-[8px] uppercase font-black mb-1">Cost So Far</p>
-                  <p className="text-2xl font-black text-emerald-400 italic">₹{currentTotalCost.toFixed(0)}</p>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center animate-pulse"
+                  style={{background:'rgba(16,185,129,0.15)', border:'1px solid rgba(16,185,129,0.3)'}}>
+                  <span className="text-lg">⚡</span>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {[
+                  { label: 'Energy Added', value: `${liveKwh.toFixed(1)} kWh`, color: 'white' },
+                  { label: 'Cost So Far', value: `₹${currentTotalCost.toFixed(0)}`, color: '#10b981' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="rounded-2xl p-4" style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)'}}>
+                    <p className="text-[8px] uppercase font-black tracking-widest mb-1" style={{color:'rgba(255,255,255,0.3)'}}>{label}</p>
+                    <p className="text-xl font-black" style={{color}}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
               <button onClick={() => setChargingStatus('PAYING')}
-                className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all">
+                className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl transition-all active:scale-95"
+                style={{background:'#10b981', color:'#000', boxShadow:'0 0 24px rgba(16,185,129,0.3)'}}>
                 Stop & Pay
               </button>
             </div>
           )}
         </div>
 
-        <button onClick={() => router.push('/explore')} className="w-full py-4 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest mt-8 mb-4 active:scale-95 transition-all">
-          Open Map View
+        {/* Map button */}
+        <button onClick={() => router.push('/explore')}
+          className="w-full py-4 font-black text-xs uppercase tracking-widest mt-6 mb-4 rounded-2xl transition-all active:scale-95"
+          style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.7)'}}>
+          Open Map View →
         </button>
       </div>
 
       {chargingStatus === 'PAYING' && (
-        <FinalPaymentModal
-          totalAmount={currentTotalCost}
-          holdAmount={stationHoldAmount}
-          sessionId={activeSessionId}
-          userId={user?.id || null}
-          onComplete={resetSession}
-        />
+        <FinalPaymentModal totalAmount={currentTotalCost} holdAmount={stationHoldAmount} sessionId={activeSessionId} userId={user?.id || null} onComplete={resetSession} />
       )}
 
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
-        <Link href="/" className="flex flex-col items-center text-emerald-400 gap-1"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1" /><span className="text-[9px] font-bold uppercase">Home</span></Link>
-        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◎</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
-        <Link href="/host" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◇</span><span className="text-[9px] font-bold uppercase">Host</span></Link>
-        <Link href="/wallet" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◍</span><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
-        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">○</span><span className="text-[9px] font-bold uppercase">Profile</span></Link>
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[88%] max-w-sm h-16 rounded-3xl flex items-center justify-around z-50"
+        style={{background:'rgba(255,255,255,0.05)', backdropFilter:'blur(20px)', border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
+        <Link href="/" className="flex flex-col items-center gap-1">
+          <div className="w-1.5 h-1.5 rounded-full" style={{background:'#10b981'}} />
+          <span className="text-[9px] font-black uppercase tracking-wider" style={{color:'#10b981'}}>Home</span>
+        </Link>
+        <Link href="/explore" className="flex flex-col items-center gap-1 group">
+          <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>◎</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Explore</span>
+        </Link>
+        <Link href="/host" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>◇</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Host</span>
+        </Link>
+        <Link href="/wallet" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>◍</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Wallet</span>
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>○</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Profile</span>
+        </Link>
       </nav>
     </main>
   );

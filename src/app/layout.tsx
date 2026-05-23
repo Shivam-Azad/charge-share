@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { VehicleProvider } from '@/context/VehicleContext';
 import { AuthProvider } from '@/components/AuthProvider';
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"]
+});
 
 export const metadata: Metadata = {
   title: "Charge.Share - EV Social Network",
@@ -14,15 +17,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" className="light" suppressHydrationWarning>
+      <body className={`${outfit.variable} antialiased`}>
         <AuthProvider>
           <VehicleProvider>
             <div className="shell">
 
               <div className="bg-fx">
-                <div className="orb o1"/><div className="orb o2"/><div className="orb o3"/>
-                <div className="grid-lines"/>
+                <div className="orb o1" /><div className="orb o2" /><div className="orb o3" />
+                <div className="grid-lines" />
               </div>
 
               <div className="lp">
@@ -31,103 +34,103 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <p className="lp-sub">India's Private EV Network</p>
                 <div className="lp-stats">
                   <div className="ls"><span className="lsv">2.4K</span><span className="lsl">Chargers</span></div>
-                  <div className="lsd"/>
+                  <div className="lsd" />
                   <div className="ls"><span className="lsv">18K</span><span className="lsl">Sessions</span></div>
-                  <div className="lsd"/>
+                  <div className="lsd" />
                   <div className="ls"><span className="lsv">P2P</span><span className="lsl">Network</span></div>
                 </div>
               </div>
 
               <div className="pw">
                 <div className="pf">
-                  <div className="pn"/>
+                  <div className="pn" />
                   <div className="ps">{children}</div>
-                  <div className="pb"/>
+                  <div className="pb" />
                 </div>
               </div>
 
               <div className="rp">
                 <div className="sw">
                   <div className="sky">
-                    <div className="moon"/>
-                    <div className="cld cl1"/><div className="cld cl2"/><div className="cld cl3"/>
-                    <div className="str s1"/><div className="str s2"/><div className="str s3"/>
-                    <div className="str s4"/><div className="str s5"/>
+                    <div className="moon" />
+                    <div className="cld cl1" /><div className="cld cl2" /><div className="cld cl3" />
+                    <div className="str s1" /><div className="str s2" /><div className="str s3" />
+                    <div className="str s4" /><div className="str s5" />
                   </div>
 
                   <svg viewBox="0 0 440 310" className="scene-svg" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                       <radialGradient id="shadowG" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.12"/>
-                        <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.12" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
                       </radialGradient>
                       <linearGradient id="beamG" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity="0"/>
-                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.38"/>
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0" />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.38" />
                       </linearGradient>
-                      <filter id="glow"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-                      <filter id="glow3"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                      <filter id="glow"><feGaussianBlur stdDeviation="1.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                      <filter id="glow3"><feGaussianBlur stdDeviation="2.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
                     </defs>
 
                     {/* ── FAR MOUNTAINS ── */}
-                    <polygon points="0,178 40,82 84,136 126,54 170,116 214,40 258,104 302,56 346,96 390,62 440,90 440,178" fill="#0a1c0d"/>
-                    <polygon points="126,54 143,82 109,82" fill="#c0ead8" opacity="0.42"/>
-                    <polygon points="214,40 233,70 195,70" fill="#c0ead8" opacity="0.42"/>
-                    <polygon points="302,56 320,84 284,84" fill="#c0ead8" opacity="0.38"/>
-                    <polygon points="0,210 34,132 76,180 118,112 162,168 206,100 250,156 294,110 338,148 382,118 440,140 440,210" fill="#061408"/>
+                    <polygon points="0,178 40,82 84,136 126,54 170,116 214,40 258,104 302,56 346,96 390,62 440,90 440,178" fill="#0a1c0d" />
+                    <polygon points="126,54 143,82 109,82" fill="#c0ead8" opacity="0.42" />
+                    <polygon points="214,40 233,70 195,70" fill="#c0ead8" opacity="0.42" />
+                    <polygon points="302,56 320,84 284,84" fill="#c0ead8" opacity="0.38" />
+                    <polygon points="0,210 34,132 76,180 118,112 162,168 206,100 250,156 294,110 338,148 382,118 440,140 440,210" fill="#061408" />
 
                     {/* ── PINE TREES ── */}
-                    {Array.from({length:24},(_,i)=>i*19).map((x,i)=>(
+                    {Array.from({ length: 24 }, (_, i) => i * 19).map((x, i) => (
                       <g key={i}>
-                        <polygon points={`${x},214 ${x+9.5},194 ${x+19},214`} fill="#030a04"/>
-                        <polygon points={`${x+2},207 ${x+9.5},188 ${x+17},207`} fill="#040c05"/>
+                        <polygon points={`${x},214 ${x + 9.5},194 ${x + 19},214`} fill="#030a04" />
+                        <polygon points={`${x + 2},207 ${x + 9.5},188 ${x + 17},207`} fill="#040c05" />
                       </g>
                     ))}
 
                     {/* ── GHAT ROAD ── */}
-                    <path d="M440,144 C412,142 386,146 362,153 C338,160 320,169 304,180 C288,191 274,204 260,217 C246,230 232,243 216,254 C200,265 180,273 156,279 C132,285 102,288 66,289 C42,289 18,289 0,289 L0,302 C18,302 42,302 68,301 C106,300 138,297 164,290 C190,283 211,274 228,262 C245,250 259,236 273,223 C287,210 301,197 316,185 C331,173 348,164 368,157 C390,149 415,147 440,149 Z" fill="#040b05"/>
-                    <path d="M440,144 C412,142 386,146 362,153 C338,160 320,169 304,180 C288,191 274,204 260,217 C246,230 232,243 216,254 C200,265 180,273 156,279 C132,285 102,288 66,289" stroke="#10b981" strokeWidth="0.6" opacity="0.09" fill="none"/>
-                    <path d="M440,149 C415,147 390,149 368,157 C348,164 331,173 316,185 C301,197 287,210 273,223 C259,236 245,250 228,262 C211,274 190,283 164,290 C138,297 106,300 68,301" stroke="#10b981" strokeWidth="0.6" opacity="0.09" fill="none"/>
+                    <path d="M440,144 C412,142 386,146 362,153 C338,160 320,169 304,180 C288,191 274,204 260,217 C246,230 232,243 216,254 C200,265 180,273 156,279 C132,285 102,288 66,289 C42,289 18,289 0,289 L0,302 C18,302 42,302 68,301 C106,300 138,297 164,290 C190,283 211,274 228,262 C245,250 259,236 273,223 C287,210 301,197 316,185 C331,173 348,164 368,157 C390,149 415,147 440,149 Z" fill="#040b05" />
+                    <path d="M440,144 C412,142 386,146 362,153 C338,160 320,169 304,180 C288,191 274,204 260,217 C246,230 232,243 216,254 C200,265 180,273 156,279 C132,285 102,288 66,289" stroke="#10b981" strokeWidth="0.6" opacity="0.09" fill="none" />
+                    <path d="M440,149 C415,147 390,149 368,157 C348,164 331,173 316,185 C301,197 287,210 273,223 C259,236 245,250 228,262 C211,274 190,283 164,290 C138,297 106,300 68,301" stroke="#10b981" strokeWidth="0.6" opacity="0.09" fill="none" />
 
                     {/* Road dashes */}
                     {[
-                      {x:408,y:145,w:10,a:-3},{x:382,y:149,w:11,a:-6},{x:356,y:155,w:12,a:-10},
-                      {x:328,y:163,w:13,a:-14},{x:302,y:173,w:14,a:-18},{x:278,y:185,w:15,a:-22},
-                      {x:256,y:199,w:16,a:-26},{x:236,y:213,w:17,a:-28},{x:218,y:228,w:18,a:-26},
-                      {x:198,y:242,w:19,a:-22},{x:174,y:254,w:20,a:-16},{x:144,y:264,w:21,a:-9},
-                      {x:108,y:272,w:22,a:-4},{x:68,y:279,w:23,a:-1},
-                    ].map((d,i)=>(
+                      { x: 408, y: 145, w: 10, a: -3 }, { x: 382, y: 149, w: 11, a: -6 }, { x: 356, y: 155, w: 12, a: -10 },
+                      { x: 328, y: 163, w: 13, a: -14 }, { x: 302, y: 173, w: 14, a: -18 }, { x: 278, y: 185, w: 15, a: -22 },
+                      { x: 256, y: 199, w: 16, a: -26 }, { x: 236, y: 213, w: 17, a: -28 }, { x: 218, y: 228, w: 18, a: -26 },
+                      { x: 198, y: 242, w: 19, a: -22 }, { x: 174, y: 254, w: 20, a: -16 }, { x: 144, y: 264, w: 21, a: -9 },
+                      { x: 108, y: 272, w: 22, a: -4 }, { x: 68, y: 279, w: 23, a: -1 },
+                    ].map((d, i) => (
                       <rect key={i} x={d.x} y={d.y} width={d.w} height={2.5} rx="1.25"
-                        fill="#10b981" opacity={0.09+(i*0.004)}
-                        transform={`rotate(${d.a},${d.x+d.w/2},${d.y+1.25})`}/>
+                        fill="#10b981" opacity={0.09 + (i * 0.004)}
+                        transform={`rotate(${d.a},${d.x + d.w / 2},${d.y + 1.25})`} />
                     ))}
 
                     <path d="M440,144 C412,142 386,146 362,153 C338,160 320,169 304,180 C288,191 274,204 260,217 C246,230 232,243 216,254 C200,265 180,273 156,279"
-                      stroke="#132b16" strokeWidth="2.2" fill="none" opacity="0.5"/>
+                      stroke="#132b16" strokeWidth="2.2" fill="none" opacity="0.5" />
 
                     {/* Valley */}
-                    <path d="M0,218 C64,214 136,222 220,218 C304,214 370,218 440,216 L440,310 L0,310Z" fill="#020804"/>
-                    <rect x="22" y="230" width="18" height="13" fill="#040c05"/>
-                    <polygon points="20,230 42,230 31,219" fill="#030904"/>
-                    <rect x="54" y="234" width="22" height="11" fill="#040c05"/>
-                    <polygon points="52,234 78,234 65,223" fill="#030904"/>
-                    <rect x="148" y="228" width="16" height="15" fill="#050d06"/>
-                    <path d="M146,228 Q156,217 166,228Z" fill="#030904"/>
+                    <path d="M0,218 C64,214 136,222 220,218 C304,214 370,218 440,216 L440,310 L0,310Z" fill="#020804" />
+                    <rect x="22" y="230" width="18" height="13" fill="#040c05" />
+                    <polygon points="20,230 42,230 31,219" fill="#030904" />
+                    <rect x="54" y="234" width="22" height="11" fill="#040c05" />
+                    <polygon points="52,234 78,234 65,223" fill="#030904" />
+                    <rect x="148" y="228" width="16" height="15" fill="#050d06" />
+                    <path d="M146,228 Q156,217 166,228Z" fill="#030904" />
 
                     {/* ── CHARGER STATION ── */}
-                    <rect x="358" y="162" width="26" height="3" rx="1.5" fill="#091808"/>
-                    <rect x="364" y="126" width="12" height="38" rx="3" fill="#050d06" stroke="#112411" strokeWidth="0.9"/>
-                    <rect x="366" y="131" width="8" height="11" rx="1.5" fill="#081508" stroke="#10b981" strokeWidth="0.65"/>
-                    <rect x="367" y="133" width="6" height="1.2" rx="0.5" fill="#10b981" opacity="0.88"/>
-                    <rect x="367" y="136" width="4" height="1.2" rx="0.5" fill="#10b981" opacity="0.55"/>
-                    <rect x="367" y="139" width="5" height="1.2" rx="0.5" fill="#10b981" opacity="0.65"/>
-                    <rect x="366" y="146" width="8" height="5" rx="1.2" fill="#0c1e0e" stroke="#10b981" strokeWidth="0.55"/>
-                    <circle cx="369" cy="148.5" r="0.9" fill="#10b981" opacity="0.65"/>
-                    <circle cx="372" cy="148.5" r="0.9" fill="#10b981" opacity="0.65"/>
-                    <circle cx="370" cy="129" r="1.8" fill="#10b981" className="cs-led"/>
+                    <rect x="358" y="162" width="26" height="3" rx="1.5" fill="#091808" />
+                    <rect x="364" y="126" width="12" height="38" rx="3" fill="#050d06" stroke="#112411" strokeWidth="0.9" />
+                    <rect x="366" y="131" width="8" height="11" rx="1.5" fill="#081508" stroke="#10b981" strokeWidth="0.65" />
+                    <rect x="367" y="133" width="6" height="1.2" rx="0.5" fill="#10b981" opacity="0.88" />
+                    <rect x="367" y="136" width="4" height="1.2" rx="0.5" fill="#10b981" opacity="0.55" />
+                    <rect x="367" y="139" width="5" height="1.2" rx="0.5" fill="#10b981" opacity="0.65" />
+                    <rect x="366" y="146" width="8" height="5" rx="1.2" fill="#0c1e0e" stroke="#10b981" strokeWidth="0.55" />
+                    <circle cx="369" cy="148.5" r="0.9" fill="#10b981" opacity="0.65" />
+                    <circle cx="372" cy="148.5" r="0.9" fill="#10b981" opacity="0.65" />
+                    <circle cx="370" cy="129" r="1.8" fill="#10b981" className="cs-led" />
                     <text x="370" y="158" textAnchor="middle" fill="#10b981" fontSize="2.8" fontFamily="monospace" opacity="0.45">CS·01</text>
-                    <ellipse cx="371" cy="166" rx="10" ry="3" fill="#10b981" opacity="0.04"/>
-                    <rect x="350" y="116" width="40" height="9" rx="2.5" fill="#030a04" stroke="#10b981" strokeWidth="0.5" opacity="0.8"/>
+                    <ellipse cx="371" cy="166" rx="10" ry="3" fill="#10b981" opacity="0.04" />
+                    <rect x="350" y="116" width="40" height="9" rx="2.5" fill="#030a04" stroke="#10b981" strokeWidth="0.5" opacity="0.8" />
                     <text x="370" y="122.5" textAnchor="middle" fill="#10b981" fontSize="4.2" fontWeight="bold" fontFamily="monospace" opacity="0.72">ChargeShare</text>
 
                     {/* ════════════════════════════════════════════════════════
@@ -181,7 +184,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     <g className="car-g">
 
                       {/* Ground shadow */}
-                      <ellipse cx="220" cy="286" rx="108" ry="5" fill="url(#shadowG)"/>
+                      <ellipse cx="220" cy="286" rx="108" ry="5" fill="url(#shadowG)" />
 
                       {/* ══════════════════════════════════════
                           SEDAN — same geometry as car_test.html
@@ -207,7 +210,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         L 298,264 L 310,266
                         C 315,267 318,270 319,274
                         L 320,284 Z
-                      " fill="#0e2212"/>
+                      " fill="#0e2212" />
 
                       {/* ROOF highlight */}
                       <path d="
@@ -216,7 +219,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         L 280,232
                         C 274,226 268,223 260,222
                         L 200,222 C 194,222 189,225 185,230 Z
-                      " fill="#173d1c"/>
+                      " fill="#173d1c" />
 
                       {/* WINDSHIELD */}
                       <path d="
@@ -225,8 +228,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         L 200,222 L 200,227
                         C 194,229 189,233 185,239
                         L 172,256 Z
-                      " fill="#04100a" stroke="#10b981" strokeWidth="0.7" opacity="0.9"/>
-                      <path d="M 170,242 L 185,228 L 190,231 L 175,246 Z" fill="white" opacity="0.04"/>
+                      " fill="#04100a" stroke="#10b981" strokeWidth="0.7" opacity="0.9" />
+                      <path d="M 170,242 L 185,228 L 190,231 L 175,246 Z" fill="white" opacity="0.04" />
 
                       {/* SIDE GLASS */}
                       <path d="
@@ -235,137 +238,137 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         L 290,246 L 290,256
                         L 172,256 L 185,239
                         C 189,233 194,229 200,227 Z
-                      " fill="#04100a" stroke="#10b981" strokeWidth="0.4" opacity="0.75"/>
-                      <path d="M 205,223 L 256,223 L 262,229 L 209,229 Z" fill="white" opacity="0.025"/>
+                      " fill="#04100a" stroke="#10b981" strokeWidth="0.4" opacity="0.75" />
+                      <path d="M 205,223 L 256,223 L 262,229 L 209,229 Z" fill="white" opacity="0.025" />
 
                       {/* B-pillar */}
-                      <rect x="228" y="222" width="4" height="34" rx="1" fill="#060d08"/>
+                      <rect x="228" y="222" width="4" height="34" rx="1" fill="#060d08" />
 
                       {/* BODY LOWER */}
-                      <rect x="112" y="262" width="206" height="12" rx="2" fill="#0a1b0d"/>
+                      <rect x="112" y="262" width="206" height="12" rx="2" fill="#0a1b0d" />
                       {/* sill */}
-                      <rect x="113" y="272" width="205" height="8" rx="1.5" fill="#070e08"/>
+                      <rect x="113" y="272" width="205" height="8" rx="1.5" fill="#070e08" />
                       {/* body crease */}
                       <path d="M 113,266 C 160,263 260,262 316,266"
-                        stroke="#10b981" strokeWidth="0.7" opacity="0.18" fill="none"/>
+                        stroke="#10b981" strokeWidth="0.7" opacity="0.18" fill="none" />
 
                       {/* door gap */}
-                      <line x1="228" y1="256" x2="228" y2="278" stroke="#040a06" strokeWidth="1.5"/>
+                      <line x1="228" y1="256" x2="228" y2="278" stroke="#040a06" strokeWidth="1.5" />
 
                       {/* door handles */}
-                      <rect x="172" y="261" width="14" height="2.5" rx="1.2" fill="#122812"/>
-                      <rect x="242" y="261" width="14" height="2.5" rx="1.2" fill="#122812"/>
+                      <rect x="172" y="261" width="14" height="2.5" rx="1.2" fill="#122812" />
+                      <rect x="242" y="261" width="14" height="2.5" rx="1.2" fill="#122812" />
 
                       {/* FRONT BUMPER */}
                       <path d="M 110,284 L 110,274 C 110,269 113,266 118,265 L 134,263 L 134,284 Z"
-                        fill="#0b1d0e"/>
-                      <rect x="111" y="275" width="20" height="8" rx="1.5" fill="#050c06" stroke="#10b981" strokeWidth="0.4"/>
-                      <line x1="112" y1="277" x2="130" y2="277" stroke="#10b981" strokeWidth="0.4" opacity="0.3"/>
-                      <line x1="112" y1="280" x2="130" y2="280" stroke="#10b981" strokeWidth="0.4" opacity="0.3"/>
+                        fill="#0b1d0e" />
+                      <rect x="111" y="275" width="20" height="8" rx="1.5" fill="#050c06" stroke="#10b981" strokeWidth="0.4" />
+                      <line x1="112" y1="277" x2="130" y2="277" stroke="#10b981" strokeWidth="0.4" opacity="0.3" />
+                      <line x1="112" y1="280" x2="130" y2="280" stroke="#10b981" strokeWidth="0.4" opacity="0.3" />
 
                       {/* ══ HEADLIGHT CLUSTER ══ */}
                       {/* housing */}
                       <path d="M 110,251 L 136,246 L 136,271 L 110,273 Z"
-                        fill="#050d07" stroke="#0b1c0e" strokeWidth="0.5"/>
+                        fill="#050d07" stroke="#0b1c0e" strokeWidth="0.5" />
                       {/* DRL razor strip */}
                       <path d="M 110,252 L 136,247 L 136,249.5 L 110,254.5 Z"
-                        fill="#10b981" opacity="0.97" className="drl" filter="url(#glow)"/>
+                        fill="#10b981" opacity="0.97" className="drl" filter="url(#glow)" />
                       <path d="M 110,252 L 136,247 L 136,248.2 L 110,253.2 Z"
-                        fill="white" opacity="0.85"/>
+                        fill="white" opacity="0.85" />
                       {/* L-hook at rear */}
                       <path d="M 132,247 L 136,247 L 136,255 L 132,255 Z"
-                        fill="#10b981" opacity="0.85" className="drl" filter="url(#glow)"/>
-                      <rect x="132.5" y="247" width="2" height="8" fill="white" opacity="0.5"/>
+                        fill="#10b981" opacity="0.85" className="drl" filter="url(#glow)" />
+                      <rect x="132.5" y="247" width="2" height="8" fill="white" opacity="0.5" />
                       {/* chrome divider */}
-                      <line x1="110" y1="255.5" x2="136" y2="251" stroke="#0f2812" strokeWidth="0.8"/>
+                      <line x1="110" y1="255.5" x2="136" y2="251" stroke="#0f2812" strokeWidth="0.8" />
                       {/* projector housing */}
-                      <path d="M 110,257 L 134,253 L 134,271 L 110,273 Z" fill="#060f08"/>
-                      <ellipse cx="121" cy="263" rx="9" ry="6" fill="#060e08" stroke="#163320" strokeWidth="1.8"/>
-                      <ellipse cx="121" cy="263" rx="7" ry="4.6" fill="#040b06"/>
-                      <ellipse cx="121" cy="263" rx="5.2" ry="3.4" fill="#07120a"/>
-                      <ellipse cx="121" cy="263" rx="3.6" ry="2.4" fill="#0a1e0d"/>
-                      <ellipse cx="120.3" cy="262.3" rx="2.2" ry="1.5" fill="#10b981" opacity="0.28"/>
-                      <ellipse cx="119.6" cy="261.5" rx="1" ry="0.7" fill="white" opacity="0.55"/>
+                      <path d="M 110,257 L 134,253 L 134,271 L 110,273 Z" fill="#060f08" />
+                      <ellipse cx="121" cy="263" rx="9" ry="6" fill="#060e08" stroke="#163320" strokeWidth="1.8" />
+                      <ellipse cx="121" cy="263" rx="7" ry="4.6" fill="#040b06" />
+                      <ellipse cx="121" cy="263" rx="5.2" ry="3.4" fill="#07120a" />
+                      <ellipse cx="121" cy="263" rx="3.6" ry="2.4" fill="#0a1e0d" />
+                      <ellipse cx="120.3" cy="262.3" rx="2.2" ry="1.5" fill="#10b981" opacity="0.28" />
+                      <ellipse cx="119.6" cy="261.5" rx="1" ry="0.7" fill="white" opacity="0.55" />
                       <ellipse cx="121" cy="263" rx="6" ry="4" fill="none"
-                        stroke="#10b981" strokeWidth="0.55" opacity="0.35" className="drl"/>
+                        stroke="#10b981" strokeWidth="0.55" opacity="0.35" className="drl" />
                       {/* beam */}
                       <path className="hl-beam"
                         d="M 110,252 L 18,229 L 12,276 L 110,273 Z"
-                        fill="url(#beamG)" opacity="0"/>
+                        fill="url(#beamG)" opacity="0" />
 
                       {/* REAR BUMPER */}
                       <path d="M 320,284 L 320,274 C 320,269 317,266 312,265 L 296,263 L 296,284 Z"
-                        fill="#0b1d0e"/>
-                      <rect x="297" y="275" width="20" height="7" rx="1.2" fill="#060d07" stroke="#0c1909" strokeWidth="0.4"/>
-                      <line x1="300" y1="277" x2="300" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2"/>
-                      <line x1="304" y1="277" x2="304" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2"/>
-                      <line x1="308" y1="277" x2="308" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2"/>
-                      <line x1="312" y1="277" x2="312" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2"/>
+                        fill="#0b1d0e" />
+                      <rect x="297" y="275" width="20" height="7" rx="1.2" fill="#060d07" stroke="#0c1909" strokeWidth="0.4" />
+                      <line x1="300" y1="277" x2="300" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2" />
+                      <line x1="304" y1="277" x2="304" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2" />
+                      <line x1="308" y1="277" x2="308" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2" />
+                      <line x1="312" y1="277" x2="312" y2="281" stroke="#10b981" strokeWidth="0.4" opacity="0.2" />
 
                       {/* ══ TAIL LAMP CLUSTER ══ */}
                       {/* housing */}
                       <path d="M 320,238 L 296,234 L 296,266 L 320,270 Z"
-                        fill="#080202" stroke="#150404" strokeWidth="0.5"/>
+                        fill="#080202" stroke="#150404" strokeWidth="0.5" />
                       {/* chrome trim */}
                       <path d="M 320,238 L 296,234 L 296,235.5 L 320,239.5 Z"
-                        fill="#1a2e1a" opacity="0.6"/>
+                        fill="#1a2e1a" opacity="0.6" />
                       {/* full-width LED strip */}
                       <path d="M 320,239.5 L 296,235.5 L 296,239.5 L 320,243.5 Z"
-                        fill="#7f1d1d" opacity="0.9" className="tail-led"/>
+                        fill="#7f1d1d" opacity="0.9" className="tail-led" />
                       <path d="M 320,239.5 L 296,235.5 L 296,237 L 320,241 Z"
-                        fill="#fca5a5" opacity="0.9" className="tail-led" filter="url(#glow)"/>
+                        fill="#fca5a5" opacity="0.9" className="tail-led" filter="url(#glow)" />
                       {/* 3 sequential bars */}
-                      <rect x="297" y="244" width="7" height="3.5" rx="1" fill="#991b1b" opacity="0.9" className="tail-s1"/>
-                      <rect x="297.3" y="244.3" width="6.4" height="1.8" rx="0.5" fill="#f87171" opacity="0.95"/>
-                      <rect x="305.5" y="244" width="7" height="3.5" rx="1" fill="#7f1d1d" opacity="0.8" className="tail-s2"/>
-                      <rect x="305.8" y="244.3" width="6.4" height="1.8" rx="0.5" fill="#ef4444" opacity="0.85"/>
-                      <rect x="313.5" y="244" width="5.5" height="3.5" rx="1" fill="#6b1919" opacity="0.7" className="tail-s3"/>
-                      <rect x="313.8" y="244.3" width="4.9" height="1.8" rx="0.5" fill="#dc2626" opacity="0.75"/>
+                      <rect x="297" y="244" width="7" height="3.5" rx="1" fill="#991b1b" opacity="0.9" className="tail-s1" />
+                      <rect x="297.3" y="244.3" width="6.4" height="1.8" rx="0.5" fill="#f87171" opacity="0.95" />
+                      <rect x="305.5" y="244" width="7" height="3.5" rx="1" fill="#7f1d1d" opacity="0.8" className="tail-s2" />
+                      <rect x="305.8" y="244.3" width="6.4" height="1.8" rx="0.5" fill="#ef4444" opacity="0.85" />
+                      <rect x="313.5" y="244" width="5.5" height="3.5" rx="1" fill="#6b1919" opacity="0.7" className="tail-s3" />
+                      <rect x="313.8" y="244.3" width="4.9" height="1.8" rx="0.5" fill="#dc2626" opacity="0.75" />
                       {/* divider */}
-                      <line x1="296" y1="248.5" x2="320" y2="252" stroke="#100202" strokeWidth="1.2"/>
+                      <line x1="296" y1="248.5" x2="320" y2="252" stroke="#100202" strokeWidth="1.2" />
                       {/* lower brake bar */}
-                      <rect x="297" y="250" width="22" height="4" rx="1.5" fill="#3b0808" opacity="0.9"/>
-                      <rect x="297.5" y="250.5" width="21" height="2" rx="0.8" fill="#dc2626" opacity="0.18"/>
+                      <rect x="297" y="250" width="22" height="4" rx="1.5" fill="#3b0808" opacity="0.9" />
+                      <rect x="297.5" y="250.5" width="21" height="2" rx="0.8" fill="#dc2626" opacity="0.18" />
                       {/* chrome divider */}
-                      <line x1="296" y1="262" x2="320" y2="266" stroke="#162416" strokeWidth="0.9"/>
+                      <line x1="296" y1="262" x2="320" y2="266" stroke="#162416" strokeWidth="0.9" />
                       {/* charge port */}
                       <rect x="303" y="254" width="7" height="7" rx="2"
                         fill="#10b981" opacity="0.08" stroke="#10b981" strokeWidth="0.6"
-                        className="cport"/>
+                        className="cport" />
                       <rect x="304.5" y="255.5" width="4" height="4" rx="1"
-                        fill="#10b981" opacity="0.45" className="cport-glow"/>
+                        fill="#10b981" opacity="0.45" className="cport-glow" />
 
                       {/* WHEEL ARCHES */}
                       <path d="M 111,284 C 115,272 128,264 160,264 C 192,264 205,272 209,284 Z"
-                        fill="#060c07" stroke="#0a1609" strokeWidth="1.8"/>
+                        fill="#060c07" stroke="#0a1609" strokeWidth="1.8" />
                       <path d="M 251,284 C 255,272 268,264 280,264 C 312,264 325,272 329,284 Z"
-                        fill="#060c07" stroke="#0a1609" strokeWidth="1.8"/>
+                        fill="#060c07" stroke="#0a1609" strokeWidth="1.8" />
 
                       {/* FRONT WHEEL */}
-                      <circle cx="160" cy="284" r="20" fill="#020702" stroke="#0b1709" strokeWidth="1.8"/>
-                      <circle cx="160" cy="284" r="19" fill="none" stroke="#050a06" strokeWidth="3" strokeDasharray="4 4.8"/>
-                      <circle cx="160" cy="284" r="12" fill="#050d06" stroke="#10b981" strokeWidth="0.9"/>
-                      <circle cx="160" cy="284" r="7.5" fill="none" stroke="#10b981" strokeWidth="0.35" opacity="0.2"/>
-                      <circle cx="160" cy="284" r="3.8" fill="#10b981" opacity="0.55"/>
-                      <circle cx="160" cy="284" r="1.5" fill="#020702"/>
-                      <g className="spk-f" style={{transformOrigin:"160px 284px"}}>
-                        {[0,72,144,216,288].map((a,i)=>(
+                      <circle cx="160" cy="284" r="20" fill="#020702" stroke="#0b1709" strokeWidth="1.8" />
+                      <circle cx="160" cy="284" r="19" fill="none" stroke="#050a06" strokeWidth="3" strokeDasharray="4 4.8" />
+                      <circle cx="160" cy="284" r="12" fill="#050d06" stroke="#10b981" strokeWidth="0.9" />
+                      <circle cx="160" cy="284" r="7.5" fill="none" stroke="#10b981" strokeWidth="0.35" opacity="0.2" />
+                      <circle cx="160" cy="284" r="3.8" fill="#10b981" opacity="0.55" />
+                      <circle cx="160" cy="284" r="1.5" fill="#020702" />
+                      <g className="spk-f" style={{ transformOrigin: "160px 284px" }}>
+                        {[0, 72, 144, 216, 288].map((a, i) => (
                           <rect key={i} x="157.8" y="272" width="4.4" height="12" rx="2.2"
-                            fill="#10b981" opacity="0.55" transform={`rotate(${a} 160 284)`}/>
+                            fill="#10b981" opacity="0.55" transform={`rotate(${a} 160 284)`} />
                         ))}
                       </g>
 
                       {/* REAR WHEEL */}
-                      <circle cx="280" cy="284" r="20" fill="#020702" stroke="#0b1709" strokeWidth="1.8"/>
-                      <circle cx="280" cy="284" r="19" fill="none" stroke="#050a06" strokeWidth="3" strokeDasharray="4 4.8"/>
-                      <circle cx="280" cy="284" r="12" fill="#050d06" stroke="#10b981" strokeWidth="0.9"/>
-                      <circle cx="280" cy="284" r="7.5" fill="none" stroke="#10b981" strokeWidth="0.35" opacity="0.2"/>
-                      <circle cx="280" cy="284" r="3.8" fill="#10b981" opacity="0.55"/>
-                      <circle cx="280" cy="284" r="1.5" fill="#020702"/>
-                      <g className="spk-r" style={{transformOrigin:"280px 284px"}}>
-                        {[0,72,144,216,288].map((a,i)=>(
+                      <circle cx="280" cy="284" r="20" fill="#020702" stroke="#0b1709" strokeWidth="1.8" />
+                      <circle cx="280" cy="284" r="19" fill="none" stroke="#050a06" strokeWidth="3" strokeDasharray="4 4.8" />
+                      <circle cx="280" cy="284" r="12" fill="#050d06" stroke="#10b981" strokeWidth="0.9" />
+                      <circle cx="280" cy="284" r="7.5" fill="none" stroke="#10b981" strokeWidth="0.35" opacity="0.2" />
+                      <circle cx="280" cy="284" r="3.8" fill="#10b981" opacity="0.55" />
+                      <circle cx="280" cy="284" r="1.5" fill="#020702" />
+                      <g className="spk-r" style={{ transformOrigin: "280px 284px" }}>
+                        {[0, 72, 144, 216, 288].map((a, i) => (
                           <rect key={i} x="277.8" y="272" width="4.4" height="12" rx="2.2"
-                            fill="#10b981" opacity="0.55" transform={`rotate(${a} 280 284)`}/>
+                            fill="#10b981" opacity="0.55" transform={`rotate(${a} 280 284)`} />
                         ))}
                       </g>
 
@@ -375,7 +378,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     {/* ── CHARGE CABLE ── */}
                     <path className="cable"
                       d="M 307,258 C 320,248 336,228 346,210 C 354,196 362,182 366,170"
-                      stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="5 4" fill="none"/>
+                      stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="5 4" fill="none" />
 
                     {/* ── ENERGY BOLTS ── */}
                     <g className="bolts">
@@ -385,31 +388,31 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                     </g>
 
                     {/* Charge glow on ground */}
-                    <ellipse className="chg-glow" cx="220" cy="288" rx="100" ry="6" fill="#10b981" opacity="0"/>
+                    <ellipse className="chg-glow" cx="220" cy="288" rx="100" ry="6" fill="#10b981" opacity="0" />
 
                     {/* Top label */}
                     <text x="220" y="15" textAnchor="middle" fill="#10b981" fontSize="5.5" fontFamily="monospace" letterSpacing="2.5" opacity="0.18" fontWeight="bold">MOUNTAIN GHAT · LIVE SESSION</text>
-                    <line x1="30" y1="20" x2="410" y2="20" stroke="#10b981" strokeWidth="0.35" opacity="0.09"/>
+                    <line x1="30" y1="20" x2="410" y2="20" stroke="#10b981" strokeWidth="0.35" opacity="0.09" />
 
                   </svg>
 
                   <div className="phase-bar">
-                    <span className="ph-dot"/>
+                    <span className="ph-dot" />
                     <span className="ph-txt">LIVE CHARGING SESSION</span>
                   </div>
                 </div>
-                <p className="caption">Peer-to-peer EV charging,<br/>wherever you are.</p>
+                <p className="caption">Peer-to-peer EV charging,<br />wherever you are.</p>
               </div>
 
             </div>
 
             <style>{`
               /* ── MOBILE (default, no phone frame) ── */
-              .shell{min-height:100vh;background:#000;display:block;}
+             .shell{min-height:100vh;background:transparent;display:block;}
               .bg-fx,.lp,.rp,.pn,.pb{display:none;}
-              .pw{display:block;width:100%;min-height:100vh;}
-              .pf{display:block;width:100%;min-height:100vh;background:#000;border-radius:0;border:none;box-shadow:none;overflow:visible;}
-              .ps{display:block;width:100%;min-height:100vh;overflow-y:auto;overflow-x:hidden;}
+             .pw{display:block;width:100%;min-height:100vh;background:transparent;}
+             .pf{display:block;width:100%;min-height:100vh;background:transparent;border-radius:0;border:none;box-shadow:none;overflow:visible;}
+              .ps{display:block;width:100%;min-height:100vh;overflow-y:auto;overflow-x:hidden;background:transparent;}
 
               @media (min-width:900px){
                 body{overflow:hidden;height:100vh;}
@@ -586,5 +589,5 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </body>
     </html>
   );
-  
+
 }

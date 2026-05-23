@@ -6,31 +6,23 @@ import { createClient } from '@/utils/supabase/client';
 
 type Tab = 'overview' | 'topup' | 'history';
 
-interface WalletData {
-  id: string;
-  balance: number;
-  held: number;
-}
-
+interface WalletData { id: string; balance: number; held: number; }
 interface Transaction {
-  id: string;
-  type: 'charge' | 'earn' | 'topup' | 'payout' | 'hold' | 'release';
-  amount: number;
-  description: string;
-  created_at: string;
+  id: string; type: 'charge' | 'earn' | 'topup' | 'payout' | 'hold' | 'release';
+  amount: number; description: string; created_at: string;
 }
 
-// ─── FAKE STRIPE PAYMENT MODAL ─────────────────────────────────────────────
-function FakeStripeModal({ amount, onSuccess, onClose }: { amount: number; onSuccess: () => void; onClose: () => void }) {
+const glass = { background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)' };
+const glassStrong = { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.1)' };
+
+// ─── TOPUP MODAL ─────────────────────────────────────────────────────────────
+function TopupModal({ amount, onSuccess, onClose }: { amount: number; onSuccess: () => void; onClose: () => void }) {
   const [step, setStep] = useState<'form' | 'processing' | 'success'>('form');
   const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const formatCard = (val: string) => val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-  const formatExpiry = (val: string) => {
-    const d = val.replace(/\D/g, '').slice(0, 4);
-    return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
-  };
+  const formatCard = (v: string) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  const formatExpiry = (v: string) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? `${d.slice(0,2)}/${d.slice(2)}` : d; };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -48,74 +40,87 @@ function FakeStripeModal({ amount, onSuccess, onClose }: { amount: number; onSuc
     setTimeout(() => { setStep('success'); setTimeout(onSuccess, 1200); }, 2800);
   };
 
+  const inputStyle = (hasError: boolean) => ({
+    width: '100%', background: 'rgba(255,255,255,0.05)',
+    border: `1px solid ${hasError ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+    borderRadius: 14, padding: '12px 16px', color: 'white',
+    fontSize: 14, fontWeight: 700, outline: 'none',
+  });
+
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-5">
-      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
-        <div className="bg-[#635BFF] px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)' }}>
+      <div className="w-full max-w-sm rounded-[32px] overflow-hidden animate-in slide-in-from-bottom-8 duration-300"
+        style={{ background: '#0a0a0f', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 -8px 60px rgba(0,0,0,0.8)' }}>
+
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center justify-between" style={{ background: 'rgba(99,91,255,0.9)' }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center">
-              <span className="text-[#635BFF] font-black text-xs">S</span>
+            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
+              <span className="font-black text-xs" style={{ color: '#635BFF' }}>S</span>
             </div>
-            <span className="text-white font-bold text-sm tracking-wide">Stripe</span>
-            <span className="text-white/50 text-[10px] font-bold ml-1">· Secure Checkout</span>
+            <span className="text-white font-bold text-sm">Stripe</span>
+            <span className="text-white/50 text-[9px] font-bold">· Secure Checkout</span>
           </div>
-          <span className="text-white font-black text-lg">₹{amount.toFixed(2)}</span>
+          <span className="text-white font-black text-lg">₹{amount}</span>
         </div>
+
         <div className="p-6">
           {step === 'form' && (
             <div className="space-y-4 animate-in fade-in duration-300">
               <div>
-                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Card Number</label>
+                <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Card Number</label>
                 <input value={card.number} onChange={e => setCard(c => ({ ...c, number: formatCard(e.target.value) }))}
-                  placeholder="4242 4242 4242 4242"
-                  className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.number ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                  placeholder="4242 4242 4242 4242" style={inputStyle(!!errors.number)} />
                 {errors.number && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.number}</p>}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Expiry</label>
+                  <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Expiry</label>
                   <input value={card.expiry} onChange={e => setCard(c => ({ ...c, expiry: formatExpiry(e.target.value) }))}
-                    placeholder="MM/YY"
-                    className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.expiry ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                    placeholder="MM/YY" style={inputStyle(!!errors.expiry)} />
                   {errors.expiry && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.expiry}</p>}
                 </div>
                 <div>
-                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">CVV</label>
-                  <input value={card.cvv} onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                    placeholder="•••" type="password"
-                    className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.cvv ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                  <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>CVV</label>
+                  <input value={card.cvv} onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g,'').slice(0,4) }))}
+                    placeholder="•••" type="password" style={inputStyle(!!errors.cvv)} />
                   {errors.cvv && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.cvv}</p>}
                 </div>
               </div>
               <div>
-                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Name on Card</label>
+                <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Name on Card</label>
                 <input value={card.name} onChange={e => setCard(c => ({ ...c, name: e.target.value }))}
-                  placeholder="SHIVAM AZAD"
-                  className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 uppercase ${errors.name ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                  placeholder="SHIVAM AZAD" style={{ ...inputStyle(!!errors.name), textTransform: 'uppercase' }} />
                 {errors.name && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.name}</p>}
               </div>
-              <div className="bg-zinc-800/50 p-3 rounded-xl flex items-center gap-2 border border-zinc-700">
+              <div className="rounded-xl p-3 flex items-center gap-2"
+                style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
                 <span className="text-emerald-400 text-xs">🔒</span>
-                <p className="text-zinc-500 text-[8px] font-bold">256-bit SSL encryption · PCI DSS compliant</p>
+                <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>256-bit SSL · PCI DSS compliant</p>
               </div>
-              <button onClick={handlePay} className="w-full py-4 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all shadow-[0_0_20px_rgba(99,91,255,0.3)]">
-                Pay ₹{amount.toFixed(2)}
+              <button onClick={handlePay}
+                className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl transition-all active:scale-95"
+                style={{ background: '#635BFF', color: 'white', boxShadow: '0 0 24px rgba(99,91,255,0.4)' }}>
+                Pay ₹{amount}
               </button>
-              <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+              <button onClick={onClose} className="w-full text-[9px] font-black uppercase tracking-widest transition-colors"
+                style={{ color: 'rgba(255,255,255,0.2)' }}>Cancel</button>
             </div>
           )}
           {step === 'processing' && (
             <div className="py-10 text-center">
-              <div className="w-16 h-16 border-4 border-[#635BFF]/20 border-t-[#635BFF] rounded-full animate-spin mx-auto mb-6" />
-              <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Authorising Payment...</p>
-              <p className="text-zinc-600 text-[9px] font-bold mt-2">Please do not close this window</p>
+              <div className="w-14 h-14 rounded-full border-4 border-t-violet-500 animate-spin mx-auto mb-5"
+                style={{ borderColor: 'rgba(99,91,255,0.15)', borderTopColor: '#635BFF' }} />
+              <p className="text-white font-black uppercase text-xs tracking-widest animate-pulse">Authorising...</p>
             </div>
           )}
           {step === 'success' && (
             <div className="py-8 text-center animate-in zoom-in duration-500">
-              <div className="w-20 h-20 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black shadow-[0_0_40px_rgba(16,185,129,0.3)]">✓</div>
-              <h3 className="text-white font-black italic uppercase text-xl tracking-tighter">Payment Successful</h3>
-              <p className="text-zinc-500 text-[9px] font-bold mt-2 uppercase tracking-widest">₹{amount.toFixed(2)} added to wallet</p>
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl font-black"
+                style={{ background: '#10b981', color: '#000', boxShadow: '0 0 40px rgba(16,185,129,0.4)' }}>✓</div>
+              <h3 className="text-white font-black text-xl">Payment Successful</h3>
+              <p className="text-[9px] font-bold mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>₹{amount} added to wallet</p>
             </div>
           )}
         </div>
@@ -124,7 +129,7 @@ function FakeStripeModal({ amount, onSuccess, onClose }: { amount: number; onSuc
   );
 }
 
-// ─── PAYOUT MODAL ──────────────────────────────────────────────────────────
+// ─── PAYOUT MODAL ─────────────────────────────────────────────────────────────
 function PayoutModal({ amount, onSuccess, onClose }: { amount: number; onSuccess: () => void; onClose: () => void }) {
   const [step, setStep] = useState<'form' | 'processing' | 'success'>('form');
   const [upi, setUpi] = useState('');
@@ -136,37 +141,44 @@ function PayoutModal({ amount, onSuccess, onClose }: { amount: number; onSuccess
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-5">
-      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)' }}>
+      <div className="w-full max-w-sm rounded-[32px] p-6 animate-in slide-in-from-bottom-8 duration-300"
+        style={{ background: '#0a0a0f', border: '1px solid rgba(255,255,255,0.1)' }}>
         {step === 'form' && (
-          <div className="space-y-5 animate-in fade-in duration-300">
-            <div className="text-center mb-2">
-              <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Withdraw Earnings</p>
-              <p className="text-4xl font-black text-emerald-400 italic mt-2">₹{amount.toFixed(0)}</p>
+          <div className="space-y-5">
+            <div className="text-center">
+              <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.3)' }}>Withdraw Earnings</p>
+              <p className="text-4xl font-black" style={{ color: '#10b981' }}>₹{amount.toFixed(0)}</p>
             </div>
             <div>
-              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">UPI ID</label>
+              <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>UPI ID</label>
               <input value={upi} onChange={e => setUpi(e.target.value)} placeholder="yourname@upi"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '12px 16px', color: 'white', fontSize: 14, fontWeight: 700, outline: 'none' }} />
             </div>
-            <p className="text-zinc-600 text-[8px] font-bold text-center">Funds arrive in 1-2 business days · Minimum ₹100</p>
-            <button onClick={handlePayout} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
+            <p className="text-center text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.2)' }}>Arrives in 1–2 days · Minimum ₹100</p>
+            <button onClick={handlePayout}
+              className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all"
+              style={{ background: '#10b981', color: '#000', boxShadow: '0 0 24px rgba(16,185,129,0.3)' }}>
               Withdraw to UPI →
             </button>
-            <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+            <button onClick={onClose} className="w-full text-[9px] font-black uppercase tracking-widest"
+              style={{ color: 'rgba(255,255,255,0.2)' }}>Cancel</button>
           </div>
         )}
         {step === 'processing' && (
           <div className="py-10 text-center">
-            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Initiating Transfer...</p>
+            <div className="w-14 h-14 rounded-full border-4 border-t-emerald-500 animate-spin mx-auto mb-5"
+              style={{ borderColor: 'rgba(16,185,129,0.15)', borderTopColor: '#10b981' }} />
+            <p className="text-white font-black uppercase text-xs tracking-widest animate-pulse">Initiating Transfer...</p>
           </div>
         )}
         {step === 'success' && (
           <div className="py-8 text-center animate-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black">₹</div>
-            <h3 className="text-white font-black italic uppercase text-xl">Transfer Initiated</h3>
-            <p className="text-zinc-500 text-[9px] font-bold mt-2 uppercase tracking-widest">Arrives in 1–2 business days</p>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl"
+              style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}>₹</div>
+            <h3 className="text-white font-black text-xl">Transfer Initiated</h3>
+            <p className="text-[9px] font-bold mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>Arrives in 1–2 business days</p>
           </div>
         )}
       </div>
@@ -174,111 +186,54 @@ function PayoutModal({ amount, onSuccess, onClose }: { amount: number; onSuccess
   );
 }
 
-// ─── MAIN WALLET PAGE ──────────────────────────────────────────────────────
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function WalletPage() {
   const { user } = useAuth();
-  // Single stable client ref — never re-created on re-renders
   const supabase = useRef(createClient()).current;
 
   const [tab, setTab] = useState<Tab>('overview');
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showStripe, setShowStripe] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
   const [showPayout, setShowPayout] = useState(false);
   const [topupAmount, setTopupAmount] = useState(500);
   const [loading, setLoading] = useState(true);
 
-  // ── Plain async fetch — reads fresh from DB every call ─────────────────
   const fetchWallet = async (uid: string) => {
     setLoading(true);
-
-    let { data: walletData, error } = await supabase
-      .from('wallets')
-      .select('id, balance, held')
-      .eq('user_id', uid)
-      .single();
-
-    // Auto-create wallet row if missing
+    let { data: walletData, error } = await supabase.from('wallets').select('id, balance, held').eq('user_id', uid).single();
     if (error && error.code === 'PGRST116') {
-      const { data: created } = await supabase
-        .from('wallets')
-        .insert({ user_id: uid, balance: 0, held: 0 })
-        .select('id, balance, held')
-        .single();
+      const { data: created } = await supabase.from('wallets').insert({ user_id: uid, balance: 0, held: 0 }).select('id, balance, held').single();
       walletData = created;
     }
-
     if (walletData) setWallet(walletData as WalletData);
-
-    const { data: txData } = await supabase
-      .from('wallet_transactions')
-      .select('id, type, amount, description, created_at')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-      .limit(30);
-
+    const { data: txData } = await supabase.from('wallet_transactions').select('id, type, amount, description, created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(30);
     if (txData) setTransactions(txData as Transaction[]);
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (user?.id) fetchWallet(user.id);
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (user?.id) fetchWallet(user.id); }, [user?.id]);
 
-  // ── Top-up: reads fresh balance from DB then updates ───────────────────
   const handleTopupSuccess = async () => {
     if (!user?.id) return;
-    setShowStripe(false);
-
-    // Always read current balance fresh — never use stale state
-    const { data: fresh } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .single();
-
+    setShowTopup(false);
+    const { data: fresh } = await supabase.from('wallets').select('balance').eq('user_id', user.id).single();
     const newBalance = (fresh?.balance ?? 0) + topupAmount;
-
-    await supabase
-      .from('wallets')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id);
-
-    await supabase.from('wallet_transactions').insert({
-      user_id: user.id,
-      type: 'topup',
-      amount: topupAmount,
-      description: `Wallet top-up via Stripe`,
-    });
-
-    // Re-fetch everything so UI reflects new balance
+    await supabase.from('wallets').update({ balance: newBalance, updated_at: new Date().toISOString() }).eq('user_id', user.id);
+    await supabase.from('wallet_transactions').insert({ user_id: user.id, type: 'topup', amount: topupAmount, description: 'Wallet top-up' });
     await fetchWallet(user.id);
     setTab('history');
   };
 
-  // ── Payout: zero out balance ───────────────────────────────────────────
   const handlePayoutSuccess = async () => {
     if (!user?.id || !wallet) return;
     setShowPayout(false);
-
     const payoutAmt = wallet.balance;
-
-    await supabase
-      .from('wallets')
-      .update({ balance: 0, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id);
-
-    await supabase.from('wallet_transactions').insert({
-      user_id: user.id,
-      type: 'payout',
-      amount: -payoutAmt,
-      description: 'Withdrawal to UPI',
-    });
-
+    await supabase.from('wallets').update({ balance: 0, updated_at: new Date().toISOString() }).eq('user_id', user.id);
+    await supabase.from('wallet_transactions').insert({ user_id: user.id, type: 'payout', amount: -payoutAmt, description: 'Withdrawal to UPI' });
     await fetchWallet(user.id);
   };
 
-  // ── Derived values ──────────────────────────────────────────────────────
   const available = wallet ? Math.max(0, wallet.balance - wallet.held) : 0;
   const held = wallet?.held ?? 0;
   const balance = wallet?.balance ?? 0;
@@ -294,110 +249,113 @@ export default function WalletPage() {
   const txIcon = (type: Transaction['type']) =>
     ({ charge: '⚡', earn: '💰', topup: '➕', payout: '🏦', hold: '🔒', release: '🔓' }[type]);
   const txColor = (type: Transaction['type']) =>
-    ({ charge: 'text-white', earn: 'text-emerald-400', topup: 'text-blue-400', payout: 'text-amber-400', hold: 'text-orange-400', release: 'text-zinc-400' }[type]);
+    ({ charge: 'rgba(255,255,255,0.9)', earn: '#10b981', topup: '#60a5fa', payout: '#fbbf24', hold: '#fb923c', release: 'rgba(255,255,255,0.4)' }[type]);
+  const txBg = (type: Transaction['type']) =>
+    ({ charge: 'rgba(255,255,255,0.05)', earn: 'rgba(16,185,129,0.1)', topup: 'rgba(96,165,250,0.1)', payout: 'rgba(251,191,36,0.1)', hold: 'rgba(251,146,60,0.1)', release: 'rgba(255,255,255,0.05)' }[type]);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
-    <main className="min-h-screen bg-black pb-40">
-      {showStripe && (
-        <FakeStripeModal amount={topupAmount} onSuccess={handleTopupSuccess} onClose={() => setShowStripe(false)} />
-      )}
-      {showPayout && wallet && (
-        <PayoutModal amount={balance} onSuccess={handlePayoutSuccess} onClose={() => setShowPayout(false)} />
-      )}
+    <main className="min-h-screen pb-40" style={{ background: '#050508' }}>
+
+      {showTopup && <TopupModal amount={topupAmount} onSuccess={handleTopupSuccess} onClose={() => setShowTopup(false)} />}
+      {showPayout && wallet && <PayoutModal amount={balance} onSuccess={handlePayoutSuccess} onClose={() => setShowPayout(false)} />}
 
       <div className="w-full max-w-md mx-auto px-5 pt-14">
 
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-center mb-7">
           <div>
-            <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Payments</p>
-            <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Wallet</h1>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Payments</p>
+            <h1 className="text-2xl font-black text-white tracking-tight">Wallet</h1>
           </div>
-          <div className="text-right">
-            <p className="text-zinc-500 text-[8px] font-bold uppercase">Secured by</p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <div className="w-5 h-5 bg-[#635BFF] rounded flex items-center justify-center"><span className="text-white font-black text-[8px]">S</span></div>
-              <span className="text-white font-bold text-xs">Stripe</span>
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: 'rgba(99,91,255,0.1)', border: '1px solid rgba(99,91,255,0.2)' }}>
+            <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: '#635BFF' }}>
+              <span className="text-white font-black text-[8px]">S</span>
             </div>
+            <span className="text-white font-bold text-xs">Stripe</span>
           </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-t-emerald-500 animate-spin"
+              style={{ borderColor: 'rgba(16,185,129,0.15)', borderTopColor: '#10b981' }} />
           </div>
         ) : (
           <>
-            {/* Balance cards */}
-            <div className="space-y-3 mb-8">
-              {/* Main balance card */}
-              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Available Balance</p>
-                    <p className="text-4xl font-black text-white italic">₹{available.toFixed(0)}</p>
-                  </div>
-                  <button
-                    onClick={() => setTab('topup')}
-                    className="py-2 px-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-[8px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all"
-                  >
-                    + Add
-                  </button>
-                </div>
+            {/* ── BALANCE HERO ── */}
+            <div className="rounded-[28px] p-6 mb-3 relative overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(255,255,255,0.04) 100%)', border: '1px solid rgba(16,185,129,0.2)', backdropFilter: 'blur(16px)' }}>
+              {/* Glow */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)' }} />
 
-                {held > 0 && (
-                  <div className="flex items-center justify-between py-2.5 px-3 bg-orange-500/5 border border-orange-500/20 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <span className="text-orange-400 text-xs">🔒</span>
-                      <div>
-                        <p className="text-orange-300 text-[9px] font-black uppercase tracking-wide">Pre-Auth Hold</p>
-                        <p className="text-zinc-600 text-[8px] font-bold">Released when session ends</p>
-                      </div>
-                    </div>
-                    <p className="text-orange-400 font-black text-sm italic">₹{held.toFixed(0)}</p>
-                  </div>
-                )}
-                {held > 0 && (
-                  <div className="flex justify-between items-center mt-2 px-1">
-                    <p className="text-zinc-600 text-[8px] font-bold">Total balance (incl. hold)</p>
-                    <p className="text-zinc-500 text-[9px] font-black">₹{balance.toFixed(0)}</p>
-                  </div>
-                )}
-              </div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Available Balance</p>
+              <p className="text-5xl font-black text-white mb-1">₹{available.toFixed(0)}</p>
+              {held > 0 && (
+                <p className="text-[9px] font-bold mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  + ₹{held.toFixed(0)} on hold
+                </p>
+              )}
 
-              {/* Host earnings card */}
-              <div className="bg-zinc-900 border border-emerald-500/20 p-5 rounded-[28px] relative overflow-hidden">
-                <div className="absolute inset-0 bg-emerald-500/3 pointer-events-none" />
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mb-1">Host Earnings</p>
-                    <p className="text-3xl font-black text-emerald-400 italic">₹{monthEarned.toFixed(0)}</p>
-                    <p className="text-zinc-600 text-[8px] font-bold mt-1">{monthHostSessions} sessions this month</p>
-                  </div>
-                  <button
-                    onClick={() => balance > 100 ? setShowPayout(true) : undefined}
-                    className={`py-2 px-4 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                      balance > 100
-                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
-                        : 'bg-zinc-800/50 border border-zinc-700 text-zinc-600 cursor-not-allowed'
-                    }`}
-                  >
-                    {balance > 100 ? 'Withdraw' : 'Min ₹100'}
-                  </button>
-                </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => { setTab('topup'); setShowTopup(true); }}
+                  className="flex-1 py-3 font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all active:scale-95"
+                  style={{ background: '#10b981', color: '#000', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}>
+                  + Add Money
+                </button>
+                <button
+                  onClick={() => balance > 100 ? setShowPayout(true) : undefined}
+                  className="flex-1 py-3 font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all active:scale-95"
+                  style={{
+                    background: balance > 100 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: balance > 100 ? 'white' : 'rgba(255,255,255,0.2)',
+                    cursor: balance > 100 ? 'pointer' : 'not-allowed',
+                  }}>
+                  Withdraw
+                </button>
               </div>
             </div>
 
+            {/* Hold banner */}
+            {held > 0 && (
+              <div className="rounded-2xl p-3.5 flex items-center gap-3 mb-3"
+                style={{ background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)' }}>
+                <span className="text-lg">🔒</span>
+                <div className="flex-1">
+                  <p className="text-[9px] font-black uppercase tracking-wider" style={{ color: '#fb923c' }}>Pre-Auth Hold Active</p>
+                  <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>₹{held.toFixed(0)} reserved · released when session ends</p>
+                </div>
+                <p className="font-black" style={{ color: '#fb923c' }}>₹{held.toFixed(0)}</p>
+              </div>
+            )}
+
+            {/* Host earnings strip */}
+            <div className="rounded-2xl p-4 flex justify-between items-center mb-6"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Host Earnings this month</p>
+                <p className="text-xl font-black" style={{ color: '#10b981' }}>₹{monthEarned.toFixed(0)}</p>
+              </div>
+              <span className="text-[8px] font-black uppercase px-3 py-1.5 rounded-full"
+                style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981' }}>
+                {monthHostSessions} sessions
+              </span>
+            </div>
+
             {/* Tabs */}
-            <div className="flex gap-2 mb-6 bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800">
+            <div className="flex gap-1 mb-5 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
               {(['overview', 'topup', 'history'] as Tab[]).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                    tab === t ? 'bg-emerald-500 text-black' : 'text-zinc-500 hover:text-white'
-                  }`}>
+                  className="flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                  style={{
+                    background: tab === t ? '#10b981' : 'transparent',
+                    color: tab === t ? '#000' : 'rgba(255,255,255,0.3)',
+                    boxShadow: tab === t ? '0 0 16px rgba(16,185,129,0.25)' : 'none',
+                  }}>
                   {t}
                 </button>
               ))}
@@ -405,44 +363,49 @@ export default function WalletPage() {
 
             {/* OVERVIEW */}
             {tab === 'overview' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
-                  <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4">This Month</p>
+              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="rounded-[24px] p-5" style={glass}>
+                  <p className="text-[9px] font-black uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>This Month</p>
                   <div className="space-y-3">
                     {[
-                      { label: 'Sessions Paid', val: `₹${monthPaid.toFixed(0)}`, sub: `${monthSessions} charges` },
-                      { label: 'Host Earnings', val: `+₹${monthEarned.toFixed(0)}`, sub: `${monthHostSessions} sessions` },
-                      { label: 'Net Balance', val: `${monthEarned - monthPaid >= 0 ? '+' : ''}₹${(monthEarned - monthPaid).toFixed(0)}`, sub: monthEarned - monthPaid >= 0 ? 'Profit this month' : 'Net spend' },
+                      { label: 'Sessions Paid', val: `₹${monthPaid.toFixed(0)}`, sub: `${monthSessions} charges`, positive: false },
+                      { label: 'Host Earnings', val: `+₹${monthEarned.toFixed(0)}`, sub: `${monthHostSessions} sessions`, positive: true },
+                      { label: 'Net', val: `${monthEarned - monthPaid >= 0 ? '+' : ''}₹${(monthEarned - monthPaid).toFixed(0)}`, sub: monthEarned - monthPaid >= 0 ? 'Profit' : 'Net spend', positive: monthEarned >= monthPaid },
                     ].map((r, i) => (
-                      <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
+                      <div key={i} className="flex justify-between items-center py-2.5" style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                         <div>
-                          <p className="text-white text-sm font-black italic uppercase">{r.label}</p>
-                          <p className="text-zinc-600 text-[8px] font-bold">{r.sub}</p>
+                          <p className="text-white text-sm font-black">{r.label}</p>
+                          <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>{r.sub}</p>
                         </div>
-                        <p className={`font-black text-lg italic ${r.val.startsWith('+') ? 'text-emerald-400' : 'text-white'}`}>{r.val}</p>
+                        <p className="font-black text-lg" style={{ color: r.positive ? '#10b981' : 'rgba(255,255,255,0.9)' }}>{r.val}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
-                  <div className="flex justify-between items-center mb-4">
-                    <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Recent</p>
-                    <button onClick={() => setTab('history')} className="text-emerald-400 text-[8px] font-black uppercase">View All →</button>
+                {/* Recent transactions */}
+                <div className="rounded-[24px] overflow-hidden" style={glass}>
+                  <div className="px-5 pt-4 pb-3 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>Recent</p>
+                    <button onClick={() => setTab('history')} className="text-[8px] font-black uppercase tracking-widest" style={{ color: '#10b981' }}>View All →</button>
                   </div>
                   {transactions.length === 0 ? (
-                    <p className="text-zinc-700 text-[10px] font-bold text-center py-4">No transactions yet</p>
+                    <div className="py-8 text-center">
+                      <p className="text-[9px] font-bold" style={{ color: 'rgba(255,255,255,0.2)' }}>No transactions yet</p>
+                    </div>
                   ) : (
-                    transactions.slice(0, 3).map(tx => (
-                      <div key={tx.id} className="flex justify-between items-center py-2.5 border-b border-zinc-800 last:border-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-zinc-800 rounded-xl flex items-center justify-center text-sm">{txIcon(tx.type)}</div>
-                          <div>
-                            <p className="text-white text-[10px] font-black italic">{tx.description}</p>
-                            <p className="text-zinc-600 text-[8px] font-bold">{formatDate(tx.created_at)}</p>
-                          </div>
+                    transactions.slice(0, 4).map((tx, i) => (
+                      <div key={tx.id} className="px-5 py-3 flex items-center gap-3"
+                        style={{ borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0"
+                          style={{ background: txBg(tx.type) }}>
+                          {txIcon(tx.type)}
                         </div>
-                        <p className={`font-black text-sm italic ${txColor(tx.type)}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-[10px] font-black truncate">{tx.description}</p>
+                          <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.25)' }}>{formatDate(tx.created_at)}</p>
+                        </div>
+                        <p className="font-black text-sm flex-shrink-0" style={{ color: txColor(tx.type) }}>
                           {tx.amount > 0 ? '+' : ''}₹{Math.abs(tx.amount)}
                         </p>
                       </div>
@@ -452,87 +415,86 @@ export default function WalletPage() {
               </div>
             )}
 
-            {/* TOP UP */}
+            {/* TOPUP */}
             {tab === 'topup' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px]">
-                  <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest mb-4">Select Amount</p>
+              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="rounded-[24px] p-5" style={glass}>
+                  <p className="text-[9px] font-black uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Select Amount</p>
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[200, 500, 1000, 1500, 2000, 5000].map(amt => (
                       <button key={amt} onClick={() => setTopupAmount(amt)}
-                        className={`py-3 rounded-xl text-sm font-black italic uppercase transition-all border ${
-                          topupAmount === amt
-                            ? 'bg-emerald-500 border-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
-                        }`}>
+                        className="py-3 rounded-xl text-sm font-black transition-all active:scale-95"
+                        style={{
+                          background: topupAmount === amt ? '#10b981' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${topupAmount === amt ? '#10b981' : 'rgba(255,255,255,0.08)'}`,
+                          color: topupAmount === amt ? '#000' : 'rgba(255,255,255,0.6)',
+                          boxShadow: topupAmount === amt ? '0 0 16px rgba(16,185,129,0.3)' : 'none',
+                        }}>
                         ₹{amt}
                       </button>
                     ))}
                   </div>
                   <div>
-                    <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Or enter amount</label>
+                    <label className="text-[8px] font-black uppercase tracking-widest block mb-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Custom amount</label>
                     <input type="number" value={topupAmount} onChange={e => setTopupAmount(parseInt(e.target.value) || 0)} min={100}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-xl font-black italic focus:outline-none focus:border-emerald-500/50" />
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '12px 16px', color: 'white', fontSize: 20, fontWeight: 900, outline: 'none' }} />
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px]">
-                  <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest mb-4">Pay Via</p>
-                  <button onClick={() => setShowStripe(true)}
-                    className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 border border-[#635BFF]/30 rounded-2xl hover:border-[#635BFF]/60 transition-all group">
-                    <div className="w-10 h-10 bg-[#635BFF] rounded-xl flex items-center justify-center">
+                <div className="rounded-[24px] p-5" style={glass}>
+                  <p className="text-[9px] font-black uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.3)' }}>Pay Via</p>
+                  <button onClick={() => setShowTopup(true)}
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-[0.98] mb-2"
+                    style={{ background: 'rgba(99,91,255,0.08)', border: '1px solid rgba(99,91,255,0.25)' }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#635BFF' }}>
                       <span className="text-white font-black text-sm">S</span>
                     </div>
-                    <div className="text-left">
-                      <p className="text-white text-sm font-black italic uppercase">Credit / Debit Card</p>
-                      <p className="text-zinc-500 text-[8px] font-bold">Powered by Stripe · SSL Secured</p>
+                    <div className="text-left flex-1">
+                      <p className="text-white text-sm font-black">Credit / Debit Card</p>
+                      <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>Powered by Stripe · SSL Secured</p>
                     </div>
-                    <span className="text-zinc-600 ml-auto group-hover:text-white transition-colors">→</span>
+                    <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
                   </button>
-
-                  <button className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl mt-3 opacity-50 cursor-not-allowed">
-                    <div className="w-10 h-10 bg-zinc-700 rounded-xl flex items-center justify-center">
+                  <div className="flex items-center gap-4 p-4 rounded-2xl opacity-40 cursor-not-allowed"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
                       <span className="text-white font-black text-sm">U</span>
                     </div>
                     <div className="text-left">
-                      <p className="text-white text-sm font-black italic uppercase">UPI / GPay / PhonePe</p>
-                      <p className="text-zinc-500 text-[8px] font-bold">Coming soon</p>
+                      <p className="text-white text-sm font-black">UPI / GPay / PhonePe</p>
+                      <p className="text-[8px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>Coming soon</p>
                     </div>
-                  </button>
+                  </div>
                 </div>
 
-                <button onClick={() => setShowStripe(true)}
-                  className="w-full py-5 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all shadow-[0_0_20px_rgba(99,91,255,0.2)]">
-                  Pay ₹{topupAmount} via Stripe →
+                <button onClick={() => setShowTopup(true)}
+                  className="w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl transition-all active:scale-95"
+                  style={{ background: '#635BFF', color: 'white', boxShadow: '0 0 24px rgba(99,91,255,0.3)' }}>
+                  Pay ₹{topupAmount} →
                 </button>
               </div>
             )}
 
             {/* HISTORY */}
             {tab === 'history' && (
-              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {transactions.length === 0 ? (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-[28px] p-10 text-center">
-                    <p className="text-zinc-700 text-2xl mb-3">📭</p>
-                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest">No transactions yet</p>
-                    <p className="text-zinc-700 text-[9px] font-bold mt-1">Top up your wallet to get started</p>
+                  <div className="py-16 text-center rounded-[28px]" style={{ border: '1px dashed rgba(255,255,255,0.06)' }}>
+                    <p className="text-4xl mb-3">📭</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.2)' }}>No transactions yet</p>
                   </div>
                 ) : (
                   transactions.map(tx => (
-                    <div key={tx.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-[24px] flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base flex-shrink-0 ${
-                        tx.type === 'earn' ? 'bg-emerald-500/10' :
-                        tx.type === 'topup' ? 'bg-blue-500/10' :
-                        tx.type === 'payout' ? 'bg-amber-500/10' :
-                        tx.type === 'hold' ? 'bg-orange-500/10' : 'bg-zinc-800'
-                      }`}>
+                    <div key={tx.id} className="rounded-[20px] p-4 flex items-center gap-3" style={glass}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-base flex-shrink-0"
+                        style={{ background: txBg(tx.type) }}>
                         {txIcon(tx.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-[10px] font-black italic truncate">{tx.description}</p>
-                        <p className="text-zinc-600 text-[8px] font-bold mt-0.5">{formatDate(tx.created_at)}</p>
+                        <p className="text-white text-[10px] font-black truncate">{tx.description}</p>
+                        <p className="text-[8px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{formatDate(tx.created_at)}</p>
                       </div>
-                      <p className={`font-black text-sm italic flex-shrink-0 ${txColor(tx.type)}`}>
+                      <p className="font-black text-sm flex-shrink-0" style={{ color: txColor(tx.type) }}>
                         {tx.amount > 0 ? '+' : ''}₹{Math.abs(tx.amount)}
                       </p>
                     </div>
@@ -545,12 +507,28 @@ export default function WalletPage() {
       </div>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
-        <Link href="/" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">○</span><span className="text-[9px] font-bold uppercase">Home</span></Link>
-        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◎</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
-        <Link href="/host" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◇</span><span className="text-[9px] font-bold uppercase">Host</span></Link>
-        <Link href="/wallet" className="flex flex-col items-center text-emerald-400 gap-1"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1" /><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
-        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">◇</span><span className="text-[9px] font-bold uppercase">Profile</span></Link>
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[88%] max-w-sm h-16 rounded-3xl flex items-center justify-around z-50"
+        style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+        <Link href="/" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>○</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Home</span>
+        </Link>
+        <Link href="/explore" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>◎</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Explore</span>
+        </Link>
+        <Link href="/host" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>◇</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Host</span>
+        </Link>
+        <Link href="/wallet" className="flex flex-col items-center gap-1">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#10b981' }} />
+          <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: '#10b981' }}>Wallet</span>
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>○</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Profile</span>
+        </Link>
       </nav>
     </main>
   );

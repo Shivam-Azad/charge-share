@@ -1,0 +1,4026 @@
+﻿===== E:\charge-share\src\app\charging\page.tsx =====
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+export default function ChargingSession() {
+  const [progress, setProgress] = useState(74);
+  const [isFinished, setIsFinished] = useState(false);
+  const [power, setPower] = useState(7.2);
+  const [mounted, setMounted] = useState(false);
+
+  // Constants for calculation
+  const STARTING_SOC = 74;
+  const RATE_PER_KWH = 11;
+  const radius = 120;
+  const circumference = 2 * Math.PI * radius;
+
+  // Prevent Hydration Mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isFinished || !mounted) return;
+    
+    const timer = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) {
+          setIsFinished(true);
+          return 100;
+        }
+        return p + 0.05; // Slightly slower for more realism
+      });
+
+      // Jitter power slightly for "live data" effect
+      setPower(parseFloat((7.2 + (Math.random() * 0.2 - 0.1)).toFixed(1)));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isFinished, mounted]);
+
+  // Derived Stats
+  const unitsAdded = Math.max(0, progress - STARTING_SOC).toFixed(1);
+  const finalCost = (parseFloat(unitsAdded) * RATE_PER_KWH).toFixed(2);
+
+  if (!mounted) return <div className="min-h-screen bg-black" />;
+
+  if (isFinished) {
+    return (
+      <main className="min-h-screen bg-[#050a14] text-white p-6 flex flex-col items-center justify-center font-sans">
+        <div className="w-full max-w-sm bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-[40px] p-8 text-center animate-in zoom-in duration-500 shadow-2xl">
+          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+            <span className="text-emerald-500 text-3xl">âš¡</span>
+          </div>
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Session Summary</h2>
+          <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-[0.2em] mb-8">Sarah's Driveway â€¢ Sector 17</p>
+
+          <div className="space-y-4 mb-8">
+            <div className="flex justify-between border-b border-zinc-800/50 pb-3">
+              <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Energy Added</span>
+              <span className="text-white font-black italic">{unitsAdded} kWh</span>
+            </div>
+            <div className="flex justify-between border-b border-zinc-800/50 pb-3">
+              <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Session Time</span>
+              <span className="text-white font-black italic">42 min</span>
+            </div>
+            <div className="flex justify-between border-b border-zinc-800/50 pb-3">
+              <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Total Paid</span>
+              <span className="text-emerald-400 font-black italic text-lg">â‚¹{finalCost}</span>
+            </div>
+          </div>
+
+          <div className="mb-10">
+            <p className="text-zinc-500 text-[10px] uppercase font-bold mb-4 tracking-widest">Rate your Host</p>
+            <div className="flex justify-center gap-3 text-2xl">
+              {['â˜…','â˜…','â˜…','â˜…','â˜†'].map((s, i) => (
+                <span key={i} className={i < 4 ? "text-emerald-400" : "text-zinc-800"}>{s}</span>
+              ))}
+            </div>
+          </div>
+
+          <Link href="/" className="block w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-2xl active:scale-95 transition-transform">
+            Done
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#050a14] text-white flex flex-col items-center p-6 justify-between font-sans overflow-hidden">
+      {/* 1. Header */}
+      <div className="pt-10 text-center relative z-10">
+        <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5 rounded-full mb-4">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest italic">Charging Active</span>
+        </div>
+        <h1 className="text-xl font-black text-white italic tracking-tighter uppercase">Tata Nexon EV</h1>
+        <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.3em] mt-1">Sarah's Home Charger</p>
+      </div>
+
+      {/* 2. Visual Charging Circle */}
+      <div className="relative flex items-center justify-center">
+        <div className="absolute w-64 h-64 bg-emerald-500/5 blur-[100px] rounded-full animate-pulse" />
+        
+        <svg className="w-80 h-80 transform -rotate-90">
+          <circle
+            cx="160" cy="160" r={radius}
+            stroke="#18181b" strokeWidth="8" fill="transparent"
+          />
+          <circle
+            cx="160" cy="160" r={radius}
+            stroke="#10b981" strokeWidth="10" fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference - (circumference * progress) / 100}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+            style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))' }}
+          />
+        </svg>
+
+        <div className="absolute text-center">
+          <span className="text-8xl font-black tracking-tighter italic leading-none">
+            {Math.floor(progress)}<span className="text-2xl text-emerald-500">%</span>
+          </span>
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-2 italic">Current SOC</p>
+        </div>
+      </div>
+
+      {/* 3. Real-time Stats Grid */}
+      <div className="w-full grid grid-cols-2 gap-4 relative z-10">
+        <div className="bg-zinc-900/40 border border-zinc-800/50 p-4 rounded-3xl backdrop-blur-md">
+          <p className="text-[9px] text-zinc-500 uppercase font-black tracking-widest mb-1">Power Input</p>
+          <p className="text-xl font-black italic">{power} <span className="text-[10px] text-zinc-600 uppercase">kW</span></p>
+        </div>
+        <div className="bg-zinc-900/40 border border-zinc-800/50 p-4 rounded-3xl backdrop-blur-md">
+          <p className="text-[9px] text-zinc-500 uppercase font-black tracking-widest mb-1">Added</p>
+          <p className="text-xl font-black italic">{unitsAdded} <span className="text-[10px] text-zinc-600 uppercase">kWh</span></p>
+        </div>
+      </div>
+
+      {/* 4. Action Button */}
+      <div className="w-full pb-10 px-2 relative z-10">
+        <button 
+          onClick={() => setIsFinished(true)}
+          className="w-full py-5 bg-zinc-900/80 backdrop-blur-md border border-red-900/20 text-red-500 font-black text-[10px] uppercase tracking-[0.4em] rounded-[24px] hover:bg-red-500/10 transition-all active:scale-95 shadow-xl"
+        >
+          Stop Session
+        </button>
+      </div>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\explore\page.tsx =====
+'use client';
+import { useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+
+const MapComponent = dynamic(() => import("@/components/ui/MapComponent"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-screen w-full bg-black flex items-center justify-center">
+      <p className="text-zinc-500 font-mono text-xs tracking-widest animate-pulse">INITIALIZING MAP...</p>
+    </div>
+  ),
+});
+
+export default function ExplorePage() {
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [destination, setDestination] = useState<[number, number] | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
+  const holdTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || !mapInstance) return;
+    setIsSearching(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ', India')}&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      if (data?.[0]) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        mapInstance.flyTo([lat, lng], 13, { animate: true, duration: 1.5 });
+        setSearchQuery('');
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const startHold = () => {
+    setIsHolding(true);
+    holdTimer.current = setTimeout(() => { setDestination(null); setIsHolding(false); }, 1000);
+  };
+  const stopHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    setIsHolding(false);
+  };
+
+  return (
+    <main className="relative h-screen w-full bg-black overflow-hidden">
+
+      {/* Full screen map */}
+      <MapComponent
+        setMapInstance={setMapInstance}
+        destination={destination}
+        setDestination={setDestination}
+      />
+
+      {/* Search bar */}
+      {!destination && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[1000]">
+          <form onSubmit={handleSearch} className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search charging stations or cities..."
+              className="w-full bg-zinc-900/90 backdrop-blur-xl border border-zinc-800/50 rounded-3xl py-3.5 px-5 pr-12 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-2xl placeholder:text-zinc-600"
+            />
+            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400">
+              {isSearching ? 'â³' : 'ðŸ”'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Cancel navigation */}
+      {destination && (
+        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[1000]">
+          <div className="relative">
+            <button
+              onMouseDown={startHold}
+              onMouseUp={stopHold}
+              onTouchStart={startHold}
+              onTouchEnd={stopHold}
+              className={`w-full py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest transition-all duration-200 border ${
+                isHolding
+                  ? 'bg-red-600 scale-95 border-transparent text-white'
+                  : 'bg-zinc-900/90 backdrop-blur-xl border-red-500/40 text-red-400'
+              }`}
+            >
+              {isHolding ? 'Release to Confirm' : 'HOLD TO CANCEL'}
+            </button>
+            {isHolding && (
+              <div className="absolute bottom-0 left-0 h-1 bg-red-400 rounded-b-3xl"
+                style={{ animation: 'progress 1s linear forwards' }} />
+            )}
+          </div>
+          <p className="text-[8px] text-zinc-500 text-center mt-2 font-bold uppercase tracking-widest">
+            Navigation Active â€¢ Hold to Stop
+          </p>
+        </div>
+      )}
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-[1000]">
+        <Link href="/" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors">
+          <span className="text-lg">â—‹</span>
+          <span className="text-[9px] font-bold uppercase">Home</span>
+        </Link>
+        <Link href="/explore" className="flex flex-col items-center text-emerald-400 gap-1">
+          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1 shadow-[0_0_8px_#34d399]"></div>
+          <span className="text-[9px] font-bold uppercase">Explore</span>
+        </Link>
+        <Link href="/wallet" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors">
+          <span className="text-lg">â—</span>
+          <span className="text-[9px] font-bold uppercase">Wallet</span>
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors">
+          <span className="text-lg">â—¯</span>
+          <span className="text-[9px] font-bold uppercase">Profile</span>
+        </Link>
+      </nav>
+
+      <style jsx global>{`
+        @keyframes progress {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+      `}</style>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\host\page.tsx =====
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
+import { createClient } from '@/utils/supabase/client';
+
+const PLUG_TYPES = ['CCS2', 'Type 2', 'CHAdeMO', 'Type 1', 'Bharat AC-001', 'Bharat DC-001'];
+const POWER_OPTIONS = ['3.3 kW', '7.4 kW', '11 kW', '22 kW', '50 kW', '100 kW', '150 kW'];
+
+type Tab = 'requests' | 'dashboard' | 'listings' | 'add';
+
+interface HostListing {
+  id: string;
+  name: string;
+  address: string;
+  plug_types: string[];
+  power_kw: number;
+  price_per_kwh: number;
+  is_available: boolean;
+}
+
+interface SessionRequest {
+  id: string;
+  charger_id: number;
+  driver_id: string;
+  status: string;
+  requested_at: string;
+  hold_amount: number;
+  rate_per_kwh: number;
+  time_limit_mins: number;
+  // joined
+  driver_name?: string;
+  driver_email?: string;
+  vehicle_reg?: string;
+  charger_name?: string;
+}
+
+export default function HostPage() {
+  const { user } = useAuth();
+  const supabase = useRef(createClient()).current;
+
+  const [tab, setTab] = useState<Tab>('requests');
+  const [listings, setListings] = useState<HostListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState('');
+  const [pendingRequests, setPendingRequests] = useState<SessionRequest[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [autoApprove, setAutoApprove] = useState(false);
+
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    totalSessions: 0,
+    activeListings: 0,
+  });
+
+  const [form, setForm] = useState({
+    name: '', address: '', latitude: '', longitude: '',
+    plug_types: [] as string[], power_kw: '7.4',
+    price_per_kwh: '12', description: '', is_available: true,
+  });
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  // â”€â”€ Load host listings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('chargers')
+        .select('*')
+        .eq('host_id', user.id);
+
+      if (data) {
+        setListings(data as HostListing[]);
+        setStats(s => ({ ...s, activeListings: data.filter((c: any) => c.is_available).length }));
+      }
+      setLoading(false);
+    };
+    load();
+  }, [user]);
+
+  // â”€â”€ Load pending session requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const loadRequests = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('session_requests')
+      .select('*')
+      .eq('host_id', user.id)
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: false });
+
+    if (error || !data) return;
+
+    // Enrich with driver profile + charger name
+    const enriched = await Promise.all(
+      data.map(async (req: any) => {
+        const [{ data: profile }, { data: charger }] = await Promise.all([
+          supabase.from('profiles').select('full_name, vehicle_reg_number').eq('id', req.driver_id).single(),
+          supabase.from('chargers').select('name').eq('id', req.charger_id).single(),
+        ]);
+        return {
+          ...req,
+          driver_name: profile?.full_name || 'Unknown Driver',
+          vehicle_reg: profile?.vehicle_reg_number || null,
+          charger_name: charger?.name || 'Your Charger',
+        };
+      })
+    );
+    setPendingRequests(enriched);
+  };
+
+  useEffect(() => { loadRequests(); }, [user]);
+
+  // â”€â”€ Realtime: listen for new session_requests for this host â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('host-requests')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'session_requests',
+        filter: `host_id=eq.${user.id}`,
+      }, () => {
+        // New request arrived â€” reload and switch to requests tab
+        loadRequests();
+        setTab('requests');
+        showToast('âš¡ New charging request!');
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // â”€â”€ Allow: approve the session request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleAllow = async (req: SessionRequest) => {
+    setActionLoading(req.id);
+
+    await supabase
+      .from('session_requests')
+      .update({ status: 'approved', approved_at: new Date().toISOString() })
+      .eq('id', req.id);
+
+    // Notify driver
+    await supabase.from('notifications').insert({
+      user_id: req.driver_id,
+      type: 'session_approved',
+      title: 'Session Approved!',
+      body: `Your charging request at ${req.charger_name} has been approved.`,
+      data: { session_id: req.id },
+      read: false,
+    });
+
+    setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+    setActionLoading(null);
+    showToast('âœ“ Session approved â€” driver is connecting');
+  };
+
+  // â”€â”€ Deny: reject and release wallet hold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleDeny = async (req: SessionRequest) => {
+    setActionLoading(req.id);
+
+    await supabase
+      .from('session_requests')
+      .update({ status: 'denied' })
+      .eq('id', req.id);
+
+    // Release driver's wallet hold
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('held')
+      .eq('user_id', req.driver_id)
+      .single();
+
+    if (wallet) {
+      await supabase
+        .from('wallets')
+        .update({ held: Math.max(0, wallet.held - req.hold_amount), updated_at: new Date().toISOString() })
+        .eq('user_id', req.driver_id);
+
+      await supabase.from('wallet_transactions').insert({
+        user_id: req.driver_id,
+        type: 'release',
+        amount: req.hold_amount,
+        description: 'Hold released â€” host declined request',
+        session_id: req.id,
+      });
+    }
+
+    // Notify driver
+    await supabase.from('notifications').insert({
+      user_id: req.driver_id,
+      type: 'session_denied',
+      title: 'Request Declined',
+      body: 'The host has declined your charging request.',
+      data: { session_id: req.id },
+      read: false,
+    });
+
+    setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+    setActionLoading(null);
+    showToast('âœ— Request declined Â· hold released to driver');
+  };
+
+  // â”€â”€ Toggle charger availability â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const toggleAvailability = async (id: string, current: boolean) => {
+    await supabase.from('chargers').update({ is_available: !current }).eq('id', id);
+    setListings(prev => prev.map(l => l.id === id ? { ...l, is_available: !current } : l));
+    showToast(!current ? 'âœ“ Charger is now Live' : 'âœ“ Charger set to Offline');
+  };
+
+  // â”€â”€ Add new charger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const submitCharger = async () => {
+    if (!user) return;
+    if (!form.name || !form.address || !form.latitude || !form.longitude || form.plug_types.length === 0) {
+      showToast('âš  Fill all required fields'); return;
+    }
+    setSaving(true);
+    const { data, error } = await supabase.from('chargers').insert({
+      host_id: user.id,
+      owner_id: user.id,
+      name: form.name, address: form.address,
+      latitude: parseFloat(form.latitude), longitude: parseFloat(form.longitude),
+      plug_types: form.plug_types,
+      power_kw: parseFloat(form.power_kw),
+      price_per_kwh: parseFloat(form.price_per_kwh),
+      description: form.description,
+      is_available: form.is_available, is_verified: false,
+    }).select().single();
+    setSaving(false);
+    if (!error && data) {
+      setListings(prev => [data as HostListing, ...prev]);
+      setForm({ name: '', address: '', latitude: '', longitude: '', plug_types: [], power_kw: '7.4', price_per_kwh: '12', description: '', is_available: true });
+      setTab('listings');
+      showToast('âœ“ Charger listed! Pending verification.');
+    } else {
+      showToast('âœ— Failed to save. Try again.');
+    }
+  };
+
+  const togglePlug = (p: string) =>
+    setForm(f => ({ ...f, plug_types: f.plug_types.includes(p) ? f.plug_types.filter(x => x !== p) : [...f.plug_types, p] }));
+
+  const timeAgo = (iso: string) => {
+    const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (secs < 60) return `${secs}s ago`;
+    if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+    return `${Math.floor(secs / 3600)}h ago`;
+  };
+
+  return (
+    <main className="min-h-screen bg-black pb-40">
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-zinc-900 border border-emerald-500/40 px-6 py-3 rounded-2xl text-emerald-400 text-[11px] font-black uppercase tracking-widest shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          {toast}
+        </div>
+      )}
+
+      <div className="w-full max-w-md mx-auto px-5 pt-14">
+
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Host Mode</p>
+            <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Your Network</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Pending badge */}
+            {pendingRequests.length > 0 && (
+              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-[9px] font-black">{pendingRequests.length}</span>
+              </div>
+            )}
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg">âš¡</div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1.5 mb-8 bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800">
+          {(['requests', 'dashboard', 'listings', 'add'] as Tab[]).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex-1 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all relative ${
+                tab === t ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-zinc-500 hover:text-white'
+              }`}>
+              {t === 'add' ? '+ Add' : t === 'requests' ? 'Requests' : t}
+              {t === 'requests' && pendingRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[7px] text-white font-black flex items-center justify-center">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* â”€â”€â”€ REQUESTS TAB â”€â”€â”€ */}
+        {tab === 'requests' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* Auto-approve toggle */}
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-[24px] flex justify-between items-center">
+              <div>
+                <p className="text-white text-sm font-black italic uppercase">Auto-Approve</p>
+                <p className="text-zinc-500 text-[8px] font-bold mt-0.5">Approve all requests automatically</p>
+              </div>
+              <button
+                onClick={() => setAutoApprove(a => !a)}
+                className={`relative w-12 h-6 rounded-full transition-all duration-300 ${autoApprove ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${autoApprove ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+            {pendingRequests.length === 0 ? (
+              <div className="py-16 border border-dashed border-zinc-800 rounded-[32px] text-center">
+                <p className="text-4xl mb-4">ðŸ“¡</p>
+                <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest mb-2">No pending requests</p>
+                <p className="text-zinc-700 text-[9px] font-bold">You'll be notified instantly when a driver requests your charger</p>
+              </div>
+            ) : (
+              pendingRequests.map(req => (
+                <div key={req.id} className="bg-zinc-900 border border-emerald-500/30 p-5 rounded-[28px] shadow-[0_0_30px_rgba(16,185,129,0.06)] animate-in fade-in zoom-in-95 duration-300">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mb-1">New Request Â· {timeAgo(req.requested_at)}</p>
+                      <h3 className="text-white font-black italic uppercase text-base">{req.driver_name}</h3>
+                      {req.vehicle_reg && (
+                        <span className="text-emerald-400 text-[9px] font-black font-mono tracking-widest">{req.vehicle_reg}</span>
+                      )}
+                    </div>
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 flex items-center justify-center text-lg">ðŸš—</div>
+                  </div>
+
+                  {/* Session details */}
+                  <div className="bg-zinc-800/50 rounded-2xl p-3 space-y-2 mb-4">
+                    {[
+                      ['Charger', req.charger_name || 'â€“'],
+                      ['Rate', `â‚¹${req.rate_per_kwh}/kWh`],
+                      ['Time Limit', `${req.time_limit_mins} mins`],
+                      ['Pre-Auth Hold', `â‚¹${req.hold_amount}`],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center">
+                        <span className="text-zinc-500 text-[8px] font-bold uppercase">{k}</span>
+                        <span className="text-white text-[9px] font-black italic">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Allow / Deny buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleDeny(req)}
+                      disabled={actionLoading === req.id}
+                      className="py-4 bg-red-500/10 border border-red-500/30 text-red-400 font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-40"
+                    >
+                      {actionLoading === req.id ? '...' : 'âœ• Deny'}
+                    </button>
+                    <button
+                      onClick={() => handleAllow(req)}
+                      disabled={actionLoading === req.id}
+                      className="py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-40 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                    >
+                      {actionLoading === req.id ? '...' : 'âœ“ Allow'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* â”€â”€â”€ DASHBOARD TAB â”€â”€â”€ */}
+        {tab === 'dashboard' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Total Earned</p>
+                <p className="text-2xl font-black text-emerald-400 italic">â‚¹{stats.totalEarnings.toFixed(0)}</p>
+                <p className="text-zinc-600 text-[8px] font-bold mt-1">After 15% platform fee</p>
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Sessions</p>
+                <p className="text-2xl font-black text-white italic">{stats.totalSessions}</p>
+                <p className="text-zinc-600 text-[8px] font-bold mt-1">All time</p>
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Active</p>
+                <p className="text-2xl font-black text-white italic">{stats.activeListings}</p>
+                <p className="text-zinc-600 text-[8px] font-bold mt-1">Live chargers</p>
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Pending</p>
+                <p className="text-2xl font-black text-amber-400 italic">{pendingRequests.length}</p>
+                <p className="text-zinc-600 text-[8px] font-bold mt-1">Requests waiting</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px]">
+              <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4">Host Tips</p>
+              <div className="space-y-3">
+                {[
+                  ['âš¡', 'Set competitive rates â€” â‚¹10â€“14/kWh converts best'],
+                  ['ðŸ“', 'Accurate GPS location gets 3x more bookings'],
+                  ['ðŸ•', 'Respond to requests quickly to build trust rating'],
+                  ['ðŸ’°', 'Payouts processed every Monday to your wallet'],
+                ].map(([icon, tip], i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <span className="text-sm">{icon}</span>
+                    <p className="text-zinc-400 text-[10px] font-bold leading-relaxed">{tip}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={() => setTab('add')}
+              className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+              + List Your Charger
+            </button>
+          </div>
+        )}
+
+        {/* â”€â”€â”€ LISTINGS TAB â”€â”€â”€ */}
+        {tab === 'listings' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {loading ? (
+              <div className="py-20 text-center">
+                <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest">Loading...</p>
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="py-16 border border-dashed border-zinc-800 rounded-[32px] text-center">
+                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-widest mb-4">No chargers listed yet</p>
+                <button onClick={() => setTab('add')} className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">+ Add Your First Charger</button>
+              </div>
+            ) : (
+              listings.map(l => (
+                <div key={l.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-white font-black italic uppercase text-sm tracking-tight">{l.name}</h3>
+                      <p className="text-zinc-500 text-[9px] font-bold mt-0.5">{l.address}</p>
+                    </div>
+                    <button onClick={() => toggleAvailability(l.id, l.is_available)}
+                      className={`relative w-12 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${l.is_available ? 'bg-emerald-500' : 'bg-zinc-700'}`}>
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${l.is_available ? 'left-6' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {(l.plug_types || []).map(p => (
+                      <span key={p} className="bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase px-2 py-1 rounded-lg">{p}</span>
+                    ))}
+                    <span className="bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase px-2 py-1 rounded-lg">{l.power_kw} kW</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-zinc-800">
+                    <span className="text-emerald-400 text-sm font-black italic">â‚¹{l.price_per_kwh}/kWh</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${l.is_available ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-zinc-600 border-zinc-700 bg-zinc-800/50'}`}>
+                      {l.is_available ? 'â— Live' : 'â—‹ Offline'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* â”€â”€â”€ ADD CHARGER TAB â”€â”€â”€ */}
+        {tab === 'add' && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px] space-y-4">
+              <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest">Station Details</p>
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Station Name *</label>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Azad's Home Charger"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+              </div>
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Address *</label>
+                <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="Street, Area, City"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Latitude *</label>
+                  <input value={form.latitude} onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))}
+                    placeholder="28.6139" type="number" step="any"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+                </div>
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Longitude *</label>
+                  <input value={form.longitude} onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))}
+                    placeholder="77.2090" type="number" step="any"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+                </div>
+              </div>
+              <button onClick={() => {
+                if ('geolocation' in navigator) {
+                  navigator.geolocation.getCurrentPosition(pos => {
+                    setForm(f => ({ ...f, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) }));
+                    showToast('âœ“ Location captured');
+                  });
+                }
+              }} className="w-full py-3 border border-dashed border-zinc-700 rounded-xl text-zinc-500 text-[9px] font-black uppercase tracking-widest hover:border-emerald-500/40 hover:text-emerald-500 transition-all">
+                ðŸ“ Use My Current Location
+              </button>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px] space-y-4">
+              <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest">Charger Specs</p>
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-2">Plug Types * (select all that apply)</label>
+                <div className="flex flex-wrap gap-2">
+                  {PLUG_TYPES.map(p => (
+                    <button key={p} onClick={() => togglePlug(p)}
+                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${
+                        form.plug_types.includes(p) ? 'bg-emerald-500 border-emerald-500 text-black' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                      }`}>{p}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Power Output</label>
+                  <select value={form.power_kw} onChange={e => setForm(f => ({ ...f, power_kw: e.target.value }))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50">
+                    {POWER_OPTIONS.map(p => <option key={p} value={p.replace(' kW', '')}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Price (â‚¹/kWh)</label>
+                  <input value={form.price_per_kwh} onChange={e => setForm(f => ({ ...f, price_per_kwh: e.target.value }))}
+                    type="number" min="5" max="50"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50" />
+                </div>
+              </div>
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Description (optional)</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Access instructions, parking info, availability hours..." rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 resize-none placeholder:text-zinc-600" />
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <div>
+                  <p className="text-white text-sm font-black italic uppercase">Go Live Immediately</p>
+                  <p className="text-zinc-500 text-[8px] font-bold mt-0.5">Make visible to drivers now</p>
+                </div>
+                <button onClick={() => setForm(f => ({ ...f, is_available: !f.is_available }))}
+                  className={`relative w-12 h-6 rounded-full transition-all duration-300 ${form.is_available ? 'bg-emerald-500' : 'bg-zinc-700'}`}>
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${form.is_available ? 'left-6' : 'left-0.5'}`} />
+                </button>
+              </div>
+            </div>
+
+            <button onClick={submitCharger} disabled={saving}
+              className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+              {saving ? 'Saving...' : 'List My Charger â†’'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
+        <Link href="/" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‹</span><span className="text-[9px] font-bold uppercase">Home</span></Link>
+        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—Ž</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
+        <Link href="/host" className="flex flex-col items-center text-emerald-400 gap-1"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1" /><span className="text-[9px] font-bold uppercase">Host</span></Link>
+        <Link href="/wallet" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—</span><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
+        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‡</span><span className="text-[9px] font-bold uppercase">Profile</span></Link>
+      </nav>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\login\page.tsx =====
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+
+// â”€â”€â”€ subtle grid background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function GridBg() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: `
+          linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 70%)',
+      }} />
+    </div>
+  );
+}
+
+type Mode = 'login' | 'register' | 'guest';
+
+function ModePills({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const pills: { id: Mode; label: string }[] = [
+    { id: 'login',    label: 'Sign In'  },
+    { id: 'register', label: 'Register' },
+    { id: 'guest',    label: 'Guest'    },
+  ];
+  const idx = pills.findIndex(p => p.id === mode);
+  return (
+    <div className="relative flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1 mb-7">
+      <div
+        className="absolute top-1 bottom-1 rounded-xl bg-zinc-800 transition-all duration-300 ease-out"
+        style={{ width: `calc(33.333% - 2.67px)`, left: `calc(${idx} * 33.333% + 4px)` }}
+      />
+      {pills.map(p => (
+        <button key={p.id} onClick={() => onChange(p.id)}
+          className={`relative z-10 flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors duration-200 ${
+            mode === p.id ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'
+          }`}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Field({ label, type = 'text', value, onChange, placeholder, onKeyDown, autoFocus }: {
+  label: string; type?: string; value: string;
+  onChange: (v: string) => void; placeholder?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void; autoFocus?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  const isPass = type === 'password';
+  return (
+    <div>
+      <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">{label}</label>
+      <div className="relative">
+        <input
+          type={isPass && show ? 'text' : type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          suppressHydrationWarning
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
+          style={isPass ? { paddingRight: '64px' } : {}}
+        />
+        {isPass && (
+          <button type="button" onClick={() => setShow(s => !s)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 text-[9px] font-black uppercase tracking-wider hover:text-zinc-300 transition-colors">
+            {show ? 'Hide' : 'Show'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OtpBoxes({ otp, onChange, onKeyDown }: {
+  otp: string[];
+  onChange: (idx: number, val: string) => void;
+  onKeyDown: (idx: number, e: React.KeyboardEvent) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 justify-between">
+      {otp.map((d, i) => (
+        <input key={i} id={`otp-${i}`} value={d}
+          onChange={e => onChange(i, e.target.value)}
+          onKeyDown={e => onKeyDown(i, e)}
+          maxLength={1} inputMode="numeric" suppressHydrationWarning
+          className="w-full aspect-square text-center text-base font-black text-white bg-zinc-900 border-2 border-zinc-800 rounded-xl focus:outline-none focus:border-emerald-500 transition-colors"
+        />
+      ))}
+    </div>
+  );
+}
+
+function Err({ msg }: { msg: string }) {
+  if (!msg) return null;
+  return (
+    <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider animate-in fade-in flex items-center gap-1.5">
+      <span>âš </span>{msg}
+    </p>
+  );
+}
+
+function PrimaryBtn({ onClick, disabled, children }: {
+  onClick: () => void; disabled?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+      {children}
+    </button>
+  );
+}
+
+function GhostBtn({ onClick, disabled, children }: {
+  onClick: () => void; disabled?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className="w-full py-3 text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-zinc-400 transition-colors disabled:opacity-40">
+      {children}
+    </button>
+  );
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next') || '';
+  const nextPath = ['/wallet', '/profile'].includes(nextParam) ? nextParam : '/';
+  const { continueAsGuest, user, loading: authLoading } = useAuth();
+  const supabase = createClient();
+
+  const [mode, setMode]           = useState<Mode>('login');
+  // â”€â”€ FIX: only two steps now â€” 'form' and 'otp'. No 'setpass' step.
+  // Password is set in onboarding, not here. This removes the duplicate.
+  const [step, setStep]           = useState<'form' | 'otp'>('form');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [otp, setOtp]             = useState(Array(8).fill(''));
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  // â”€â”€ FIX: use a flag to block the useEffect redirect during OTP flow
+  // Without this flag, when verifyOtp sets the session and user becomes
+  // non-null, the useEffect fires router.replace(nextPath) before
+  // goAfterAuth can check onboarding_complete, skipping onboarding.
+  const [handlingOtp, setHandlingOtp] = useState(false);
+
+  useEffect(() => {
+    // Only redirect if we're NOT in the middle of OTP verification
+    if (!authLoading && user && !handlingOtp) {
+      router.replace(nextPath);
+    }
+  }, [user, authLoading, handlingOtp]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  const clearForm = () => {
+    setEmail(''); setPassword('');
+    setOtp(Array(8).fill('')); setError(''); setStep('form');
+    setHandlingOtp(false);
+  };
+
+  const switchMode = (m: Mode) => { setMode(m); clearForm(); };
+
+  const handleOtpChange = (idx: number, val: string) => {
+    if (val.length > 1) {
+      const digits = val.replace(/\D/g, '').slice(0, 8).split('');
+      const next = Array(8).fill('');
+      digits.forEach((d, i) => { next[i] = d; });
+      setOtp(next);
+      document.getElementById(`otp-${Math.min(7, digits.length - 1)}`)?.focus();
+      return;
+    }
+    const next = [...otp];
+    next[idx] = val.replace(/\D/g, '').slice(-1);
+    setOtp(next);
+    if (val && idx < 7) document.getElementById(`otp-${idx + 1}`)?.focus();
+  };
+
+  const handleOtpKey = (idx: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[idx] && idx > 0)
+      document.getElementById(`otp-${idx - 1}`)?.focus();
+  };
+
+  // â”€â”€ LOGIN with email + password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleLogin = async () => {
+    if (!email.trim()) return setError('Enter your email.');
+    if (!password)     return setError('Enter your password.');
+    setLoading(true); setError('');
+
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(), password,
+    });
+    setLoading(false);
+
+    if (err) {
+      if (err.message.toLowerCase().includes('invalid')) return setError('Incorrect email or password.');
+      return setError(err.message);
+    }
+    router.replace(nextPath);
+    router.refresh();
+  };
+
+  // â”€â”€ REGISTER step 1: send OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleSendOtp = async () => {
+    if (!email.trim()) return setError('Enter your email address.');
+    setLoading(true); setError('');
+
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { shouldCreateUser: true },
+    });
+    setLoading(false);
+    if (err) return setError(err.message);
+
+    setStep('otp');
+    setCountdown(60);
+    setOtp(Array(8).fill(''));
+  };
+
+  // â”€â”€ REGISTER step 2: verify OTP â†’ go to onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleVerifyOtp = async () => {
+    const code = otp.join('');
+    if (code.length < 8) return setError('Enter the full 8-digit code.');
+    setLoading(true); setError('');
+
+    // Block the useEffect redirect while we handle this
+    setHandlingOtp(true);
+
+    const { data, error: err } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: code, type: 'email',
+    });
+
+    if (err) {
+      setLoading(false);
+      setHandlingOtp(false);
+      return setError('Invalid or expired code. Try again.');
+    }
+
+    // Write session to cookies so middleware picks it up
+    if (data.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
+
+    const uid = data.session?.user?.id || data.user?.id;
+
+    // Check if onboarding is already complete
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_complete')
+      .eq('id', uid)
+      .single();
+
+    setLoading(false);
+    // Keep handlingOtp true until after navigation
+    router.refresh();
+    router.replace(!profile?.onboarding_complete ? '/onboarding' : nextPath);
+  };
+
+  // â”€â”€ GUEST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleGuest = () => { continueAsGuest(); router.replace('/'); };
+
+  if (authLoading) return <div className="min-h-screen bg-black" />;
+
+  return (
+    <main className="min-h-screen bg-black flex flex-col items-center justify-center px-5 py-10 relative">
+      <GridBg />
+
+      <div className="relative z-10 w-full max-w-sm">
+
+        {/* Logo */}
+        <div className="text-center mb-7">
+          <div className="w-14 h-14 rounded-[18px] flex items-center justify-center text-2xl mx-auto mb-3"
+            style={{ background: '#10b981', boxShadow: '0 0 48px rgba(16,185,129,0.32)' }}>
+            âš¡
+          </div>
+          <h1 className="text-[28px] font-black text-white italic uppercase tracking-tighter leading-none">
+            Charge<span style={{ color: '#10b981' }}>.Share</span>
+          </h1>
+          <p className="text-zinc-600 text-[9px] font-bold uppercase tracking-[0.28em] mt-1">
+            India's Private EV Network
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="rounded-[28px] p-5 border"
+          style={{ background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(20px)', borderColor: 'rgba(255,255,255,0.06)' }}>
+
+          {step === 'form' && <ModePills mode={mode} onChange={switchMode} />}
+
+          {/* â•â• LOGIN â•â• */}
+          {mode === 'login' && step === 'form' && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="mb-2">
+                <h2 className="text-white font-black italic uppercase text-lg tracking-tight">Welcome back</h2>
+                <p className="text-zinc-600 text-[9px] font-bold mt-0.5">Sign in with your email & password</p>
+              </div>
+
+              <Field label="Email" type="email" value={email}
+                onChange={v => { setEmail(v); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="you@example.com" autoFocus />
+
+              <Field label="Password" type="password" value={password}
+                onChange={v => { setPassword(v); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="Your password" />
+
+              <Err msg={error} />
+              <PrimaryBtn onClick={handleLogin} disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In â†’'}
+              </PrimaryBtn>
+
+              <p className="text-zinc-700 text-[9px] font-bold text-center pt-1">
+                New here?{' '}
+                <button onClick={() => switchMode('register')}
+                  className="text-emerald-500 hover:text-emerald-400 transition-colors font-black">
+                  Create an account
+                </button>
+              </p>
+            </div>
+          )}
+
+          {/* â•â• REGISTER: email â•â• */}
+          {mode === 'register' && step === 'form' && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="mb-2">
+                <h2 className="text-white font-black italic uppercase text-lg tracking-tight">Create account</h2>
+                <p className="text-zinc-600 text-[9px] font-bold mt-0.5">We'll verify your email with a one-time code</p>
+              </div>
+
+              <Field label="Email Address" type="email" value={email}
+                onChange={v => { setEmail(v); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
+                placeholder="you@example.com" autoFocus />
+
+              <Err msg={error} />
+              <PrimaryBtn onClick={handleSendOtp} disabled={loading}>
+                {loading ? 'Sending Code...' : 'Send Verification Code â†’'}
+              </PrimaryBtn>
+
+              <p className="text-zinc-700 text-[9px] font-bold text-center pt-1">
+                Already have an account?{' '}
+                <button onClick={() => switchMode('login')}
+                  className="text-emerald-500 hover:text-emerald-400 transition-colors font-black">
+                  Sign in
+                </button>
+              </p>
+            </div>
+          )}
+
+          {/* â•â• REGISTER: OTP â•â• */}
+          {mode === 'register' && step === 'otp' && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <button onClick={() => { setStep('form'); setError(''); setOtp(Array(8).fill('')); setHandlingOtp(false); }}
+                className="text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">
+                â† Back
+              </button>
+
+              <div>
+                <h2 className="text-white font-black italic uppercase text-lg tracking-tight">Check your email</h2>
+                <p className="text-zinc-600 text-[9px] font-bold mt-1">
+                  8-digit code sent to <span className="text-white font-black">{email}</span>
+                </p>
+              </div>
+
+              <OtpBoxes otp={otp} onChange={handleOtpChange} onKeyDown={handleOtpKey} />
+
+              <Err msg={error} />
+              <PrimaryBtn onClick={handleVerifyOtp} disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify & Continue â†’'}
+              </PrimaryBtn>
+              <GhostBtn onClick={countdown > 0 ? () => {} : handleSendOtp} disabled={countdown > 0}>
+                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
+              </GhostBtn>
+
+              {/* Clear hint about what happens next */}
+              <p className="text-zinc-700 text-[8px] font-bold text-center">
+                After verification you'll set up your profile
+              </p>
+            </div>
+          )}
+
+          {/* â•â• GUEST â•â• */}
+          {mode === 'guest' && step === 'form' && (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div className="mb-1">
+                <h2 className="text-white font-black italic uppercase text-lg tracking-tight">Browse freely</h2>
+                <p className="text-zinc-600 text-[9px] font-bold mt-0.5">
+                  Explore the app without creating an account.
+                </p>
+              </div>
+
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-2">
+                {[
+                  { ok: true,  label: 'Browse nearby chargers' },
+                  { ok: true,  label: 'View map & explore'     },
+                  { ok: false, label: 'Book a charging session' },
+                  { ok: false, label: 'Host your charger'       },
+                  { ok: false, label: 'Access wallet & history' },
+                ].map(({ ok, label }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <span className={`text-[11px] font-black w-4 flex-shrink-0 ${ok ? 'text-emerald-500' : 'text-zinc-700'}`}>
+                      {ok ? 'âœ“' : 'âœ—'}
+                    </span>
+                    <span className={`text-[10px] font-bold ${ok ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <PrimaryBtn onClick={handleGuest}>Continue as Guest â†’</PrimaryBtn>
+
+              <p className="text-zinc-700 text-[9px] font-bold text-center">
+                Want full access?{' '}
+                <button onClick={() => switchMode('register')}
+                  className="text-emerald-500 hover:text-emerald-400 transition-colors font-black">
+                  Create a free account
+                </button>
+              </p>
+            </div>
+          )}
+        </div>
+
+        <p className="text-zinc-800 text-[8px] font-bold text-center mt-5 uppercase tracking-widest">
+          Charge.Share Â· India's P2P EV Network
+        </p>
+      </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+===== E:\charge-share\src\app\onboarding\page.tsx =====
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+
+type Step = 'details' | 'password' | 'done';
+
+export default function OnboardingPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const supabase = createClient();
+
+  const [step, setStep] = useState<Step>('details');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Step 1 â€” personal details
+  const [fullName, setFullName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [vehicleReg, setVehicleReg] = useState('');
+
+  // Step 2 â€” password
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPass, setShowPass] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace('/login');
+  }, [user, loading]);
+
+  const formatMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10);
+  const formatVehicleReg = (val: string) => val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+
+  const submitDetails = async () => {
+    if (!fullName.trim()) return setError('Full name is required.');
+    if (mobile.length < 10) return setError('Enter a valid 10-digit mobile number.');
+    setError('');
+    setSaving(true);
+
+    const { error: err } = await supabase.from('profiles').upsert({
+      id: user!.id,
+      full_name: fullName.trim(),
+      mobile_number: mobile,
+      vehicle_reg_number: vehicleReg.trim() || null,
+      updated_at: new Date().toISOString(),
+    });
+
+    setSaving(false);
+    if (err) return setError(err.message);
+    setStep('password');
+  };
+
+  const submitPassword = async () => {
+    if (password.length < 8) return setError('Password must be at least 8 characters.');
+    if (password !== confirm) return setError('Passwords do not match.');
+    setError('');
+    setSaving(true);
+
+    const { error: err } = await supabase.auth.updateUser({ password });
+    if (err) {
+      setSaving(false);
+      return setError(err.message);
+    }
+
+    await supabase.from('profiles').upsert({
+      id: user!.id,
+      onboarding_complete: true,
+      updated_at: new Date().toISOString(),
+    });
+
+    setSaving(false);
+    setStep('done');
+  };
+
+  const skipPassword = async () => {
+    setSaving(true);
+    await supabase.from('profiles').upsert({
+      id: user!.id,
+      onboarding_complete: true,
+      updated_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    setStep('done');
+  };
+
+  if (loading || !user) return <div className="min-h-screen bg-black" />;
+
+  const progressPct = step === 'details' ? 33 : step === 'password' ? 66 : 100;
+
+  return (
+    <main className="min-h-screen bg-black flex flex-col items-center justify-center px-6 py-12">
+      <div className="w-full max-w-sm">
+
+        {/* Logo + progress */}
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3 shadow-[0_0_30px_rgba(16,185,129,0.25)]">
+            âš¡
+          </div>
+          <p className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.25em]">
+            Set Up Your Account
+          </p>
+          <div className="mt-4 h-1 bg-zinc-900 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <p className="text-zinc-700 text-[8px] font-bold uppercase tracking-widest mt-1">
+            Step {step === 'details' ? 1 : step === 'password' ? 2 : 3} of 3
+          </p>
+        </div>
+
+        {/* â”€â”€ Step 1: Details â”€â”€ */}
+        {step === 'details' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+            <div className="mb-2">
+              <h2 className="text-white font-black italic uppercase text-lg tracking-tight">
+                Personal Details
+              </h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-1">
+                Tell us who you are â€” this appears on your profile.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={e => { setFullName(e.target.value); setError(''); }}
+                placeholder="Shivam Azad"
+                autoFocus
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Mobile Number *
+              </label>
+              <div className="flex gap-2">
+                <div className="flex items-center px-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 text-sm font-bold">
+                  +91
+                </div>
+                <input
+                  type="tel"
+                  value={mobile}
+                  onChange={e => { setMobile(formatMobile(e.target.value)); setError(''); }}
+                  placeholder="9876543210"
+                  inputMode="numeric"
+                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Vehicle Registration â€” optional */}
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Vehicle Registration No. <span className="text-zinc-700 normal-case font-bold tracking-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={vehicleReg}
+                onChange={e => { setVehicleReg(formatVehicleReg(e.target.value)); setError(''); }}
+                placeholder="HR26DK1234"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold font-mono focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors tracking-widest uppercase"
+              />
+              <p className="text-zinc-700 text-[8px] font-bold mt-1.5">
+                Shown to hosts as a trust signal Â· can be added later in Profile
+              </p>
+            </div>
+
+            {/* Email read-only */}
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Email
+              </label>
+              <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl px-4 py-3.5 text-zinc-500 text-sm font-bold">
+                {user.email}
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider animate-in fade-in">
+                âš  {error}
+              </p>
+            )}
+
+            <button
+              onClick={submitDetails}
+              disabled={saving}
+              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Next â†’'}
+            </button>
+          </div>
+        )}
+
+        {/* â”€â”€ Step 2: Password â”€â”€ */}
+        {step === 'password' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 space-y-4">
+            <div className="mb-2">
+              <h2 className="text-white font-black italic uppercase text-lg tracking-tight">
+                Set a Password
+              </h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-1">
+                Next time you can login with your email + password instead of OTP.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  placeholder="Min. 8 characters"
+                  autoFocus
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 pr-12 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
+                />
+                <button
+                  onClick={() => setShowPass(s => !s)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 text-[10px] font-bold uppercase hover:text-white"
+                >
+                  {showPass ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">
+                Confirm Password
+              </label>
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={confirm}
+                onChange={e => { setConfirm(e.target.value); setError(''); }}
+                placeholder="Re-enter password"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/60 placeholder:text-zinc-700 transition-colors"
+              />
+            </div>
+
+            {password.length > 0 && (
+              <div className="flex gap-1 items-center">
+                {[1, 2, 3, 4].map(n => (
+                  <div
+                    key={n}
+                    className={`flex-1 h-1 rounded-full transition-all ${
+                      password.length >= n * 3
+                        ? n <= 1 ? 'bg-red-500'
+                        : n <= 2 ? 'bg-yellow-500'
+                        : n <= 3 ? 'bg-emerald-500/70'
+                        : 'bg-emerald-500'
+                        : 'bg-zinc-800'
+                    }`}
+                  />
+                ))}
+                <span className="text-zinc-600 text-[8px] font-bold ml-1">
+                  {password.length < 4 ? 'Weak' : password.length < 8 ? 'Fair' : password.length < 12 ? 'Good' : 'Strong'}
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider animate-in fade-in">
+                âš  {error}
+              </p>
+            )}
+
+            <button
+              onClick={submitPassword}
+              disabled={saving}
+              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Set Password & Finish â†’'}
+            </button>
+
+            <button
+              onClick={skipPassword}
+              disabled={saving}
+              className="w-full py-3 text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-white transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
+
+        {/* â”€â”€ Step 3: Done â”€â”€ */}
+        {step === 'done' && (
+          <div className="animate-in fade-in zoom-in duration-500 text-center space-y-6">
+            <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto text-4xl font-black shadow-[0_0_60px_rgba(16,185,129,0.35)]">
+              âœ“
+            </div>
+            <div>
+              <h2 className="text-white font-black italic uppercase text-2xl tracking-tighter">
+                You're All Set!
+              </h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-2">
+                Welcome to Charge.Share, {fullName.split(' ')[0] || 'Driver'} âš¡
+              </p>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 text-left space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Name</span>
+                <span className="text-white text-[11px] font-black">{fullName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Mobile</span>
+                <span className="text-white text-[11px] font-black">+91 {mobile}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Email</span>
+                <span className="text-white text-[11px] font-black truncate max-w-[160px]">{user.email}</span>
+              </div>
+              {vehicleReg && (
+                <div className="flex justify-between items-center pt-1 border-t border-zinc-800">
+                  <span className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Vehicle</span>
+                  <span className="text-emerald-400 text-[11px] font-black font-mono tracking-widest">{vehicleReg}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => router.replace('/')}
+              className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all"
+            >
+              Start Charging â†’
+            </button>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\profile\page.tsx =====
+'use client';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
+import { useVehicle } from '@/context/VehicleContext';
+import { createClient } from '@/utils/supabase/client';
+import { EV_BRANDS, EV_MODELS } from '@/data/ev-database';
+
+type Tab = 'profile' | 'garage' | 'sessions' | 'host';
+
+interface UserProfile {
+  full_name: string;
+  mobile_number: string;
+  city: string;
+  upi_id: string;
+  is_host: boolean;
+  host_bank_account: string;
+  host_upi: string;
+  dl_number: string;
+  aadhar_last4: string;
+  rating: number;
+  total_sessions: number;
+}
+
+interface Session {
+  id: string;
+  station_name: string;
+  kwh: number;
+  cost: number;
+  date: string;
+  type: 'driver' | 'host';
+}
+
+// â”€â”€ reusable field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function ProfileField({
+  label, value, onChange, placeholder, type = 'text',
+  prefix, readOnly, mono,
+}: {
+  label: string; value: string; onChange?: (v: string) => void;
+  placeholder?: string; type?: string; prefix?: string;
+  readOnly?: boolean; mono?: boolean;
+}) {
+  return (
+    <div className="group">
+      <p className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.18em] mb-1.5">{label}</p>
+      {readOnly ? (
+        <p className={`text-white text-sm font-bold px-1 ${mono ? 'font-mono text-zinc-400 text-xs' : ''}`}>
+          {value || <span className="text-zinc-700">â€”</span>}
+        </p>
+      ) : prefix ? (
+        <div className="flex gap-2 items-center">
+          <span className="text-zinc-500 text-sm font-black bg-zinc-800/60 border border-zinc-700/60 px-3 py-2.5 rounded-xl flex-shrink-0">
+            {prefix}
+          </span>
+          <input
+            type={type}
+            value={value}
+            onChange={e => onChange?.(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            placeholder={placeholder}
+            inputMode="numeric"
+            className="flex-1 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-700 transition-colors"
+          />
+        </div>
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange?.(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-700 transition-colors"
+        />
+      )}
+    </div>
+  );
+}
+
+// â”€â”€ stat pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function StatPill({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={`text-lg font-black italic leading-none ${accent ? 'text-emerald-400' : 'text-white'}`}>
+        {value}
+      </span>
+      <span className="text-zinc-600 text-[8px] font-bold uppercase tracking-wider">{label}</span>
+    </div>
+  );
+}
+
+// â”€â”€ section wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function Section({ title, children, action }: {
+  title?: string; children: React.ReactNode;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-3xl overflow-hidden">
+      {title && (
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-zinc-800/60">
+          <p className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.2em]">{title}</p>
+          {action && (
+            <button onClick={action.onClick}
+              className="text-emerald-500 text-[9px] font-black uppercase tracking-wider hover:text-emerald-400 transition-colors">
+              {action.label}
+            </button>
+          )}
+        </div>
+      )}
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export default function ProfilePage() {
+  const { user, loading: authLoading, logout } = useAuth();
+  const { userCars, selectedCar, setSelectedCar, addCar } = useVehicle();
+
+  const [tab, setTab]                   = useState<Tab>('profile');
+  const [saving, setSaving]             = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [toast, setToast]               = useState('');
+  const [toastOk, setToastOk]           = useState(true);
+  const [showAddCar, setShowAddCar]     = useState(false);
+  const [sessions, setSessions]         = useState<Session[]>([]);
+  const [editMode, setEditMode]         = useState(false);
+
+  const [profile, setProfile] = useState<UserProfile>({
+    full_name: '', mobile_number: '', city: '', upi_id: '',
+    is_host: false, host_bank_account: '', host_upi: '',
+    dl_number: '', aadhar_last4: '', rating: 4.8, total_sessions: 0,
+  });
+
+  const [carForm, setCarForm] = useState({ brand: 'Tata', model: 'nexon-ev' });
+
+  const showToast = (msg: string, ok = true) => {
+    setToast(msg); setToastOk(ok);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  // â”€â”€ load â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setProfileLoading(false); return; }
+    const supabase = createClient();
+    (async () => {
+      setProfileLoading(true);
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (data) {
+        setProfile(prev => ({
+          ...prev,
+          full_name:         data.full_name         ?? prev.full_name,
+          mobile_number:     data.mobile_number     ?? data.phone ?? prev.mobile_number,
+          city:              data.city              ?? prev.city,
+          upi_id:            data.upi_id            ?? prev.upi_id,
+          is_host:           data.is_host           ?? prev.is_host,
+          host_bank_account: data.host_bank_account ?? prev.host_bank_account,
+          host_upi:          data.host_upi          ?? prev.host_upi,
+          dl_number:         data.dl_number         ?? prev.dl_number,
+          aadhar_last4:      data.aadhar_last4      ?? prev.aadhar_last4,
+          rating:            data.rating            ?? prev.rating,
+          total_sessions:    data.total_sessions    ?? prev.total_sessions,
+        }));
+      } else {
+        const meta = user.user_metadata ?? {};
+        setProfile(prev => ({
+          ...prev,
+          full_name: meta.full_name || meta.name || '',
+          mobile_number: meta.mobile_number || meta.phone || '',
+        }));
+        await supabase.from('profiles').insert({ id: user.id, full_name: meta.full_name || meta.name || '' });
+      }
+      setSessions([
+        { id: '1', station_name: "Sarah's Driveway", kwh: 7.5,  cost: 83,  date: '9 Mar 2026', type: 'driver' },
+        { id: '2', station_name: 'Statiq Hub',        kwh: 3.8,  cost: 55,  date: '7 Mar 2026', type: 'driver' },
+        { id: '3', station_name: 'Your Charger',       kwh: 11.2, cost: 134, date: '6 Mar 2026', type: 'host'   },
+        { id: '4', station_name: 'Your Charger',       kwh: 8.9,  cost: 107, date: '4 Mar 2026', type: 'host'   },
+      ]);
+      setProfileLoading(false);
+    })();
+  }, [user, authLoading]);
+
+  // â”€â”€ save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const saveProfile = async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) { showToast('Not logged in', false); return; }
+    setSaving(true);
+    const { error } = await supabase.from('profiles').upsert({
+      id: session.user.id,
+      full_name: profile.full_name,
+      mobile_number: profile.mobile_number,
+      city: profile.city,
+      upi_id: profile.upi_id,
+      is_host: profile.is_host,
+      host_bank_account: profile.host_bank_account,
+      host_upi: profile.host_upi,
+      dl_number: profile.dl_number,
+      aadhar_last4: profile.aadhar_last4,
+      onboarding_complete: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    setSaving(false);
+    if (!error) { showToast('Profile saved'); setEditMode(false); }
+    else showToast(error.message, false);
+  };
+
+  const handleAddCar = () => {
+    const model = (EV_MODELS[carForm.brand] || []).find((m: any) => m.id === carForm.model);
+    if (!model) return;
+    addCar({ ...model, brand: carForm.brand });
+    setShowAddCar(false);
+    showToast('Vehicle added');
+  };
+
+  const initials = profile.full_name
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.[0]?.toUpperCase() || '?';
+
+  const firstName = profile.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Driver';
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    : 'â€”';
+
+  const totalEarned = sessions.filter(s => s.type === 'host').reduce((a, s) => a + s.cost, 0);
+  const totalSpent  = sessions.filter(s => s.type === 'driver').reduce((a, s) => a + s.cost, 0);
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-3">
+        <div className="w-7 h-7 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-zinc-700 text-[9px] font-black uppercase tracking-widest">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-black pb-40">
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[200] px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-2xl animate-in slide-in-from-top-3 duration-200 border ${
+          toastOk
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            : 'bg-red-500/10 border-red-500/30 text-red-400'
+        }`}>
+          {toastOk ? 'âœ“' : 'âœ—'} {toast}
+        </div>
+      )}
+
+      {/* Add car modal */}
+      {showAddCar && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[28px] p-6 space-y-4">
+            <div className="text-center mb-2">
+              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.25em]">Garage</p>
+              <h3 className="text-white font-black italic uppercase text-xl mt-1">Add Vehicle</h3>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Brand</label>
+              <select value={carForm.brand}
+                onChange={e => setCarForm({ brand: e.target.value, model: EV_MODELS[e.target.value]?.[0]?.id || '' })}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none">
+                {EV_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Model</label>
+              <select value={carForm.model}
+                onChange={e => setCarForm(f => ({ ...f, model: e.target.value }))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none">
+                {(EV_MODELS[carForm.brand] || []).map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name} Â· {m.battery}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setShowAddCar(false)}
+                className="flex-1 py-3.5 bg-zinc-800 text-zinc-400 font-black uppercase text-[9px] tracking-widest rounded-2xl">
+                Cancel
+              </button>
+              <button onClick={handleAddCar}
+                className="flex-1 py-3.5 bg-emerald-500 text-black font-black uppercase text-[9px] tracking-widest rounded-2xl">
+                Add â†’
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="w-full max-w-md mx-auto px-4 pt-12">
+
+        {/* â”€â”€ HERO HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <div className="relative mb-6">
+          {/* background glow */}
+          <div className="absolute inset-0 rounded-[28px] overflow-hidden pointer-events-none">
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/8 rounded-full blur-3xl" />
+            <div className="absolute -bottom-5 -right-5 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl" />
+          </div>
+
+          <div className="relative bg-zinc-900/80 border border-zinc-800/80 rounded-[28px] p-5 backdrop-blur-sm">
+            {/* top row */}
+            <div className="flex items-start gap-4 mb-5">
+              {/* avatar */}
+              <div className="relative flex-shrink-0">
+                <div className="w-[60px] h-[60px] rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-black font-black text-xl"
+                  style={{ boxShadow: '0 0 24px rgba(16,185,129,0.3)' }}>
+                  {initials}
+                </div>
+                {profile.is_host && (
+                  <div className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 rounded-lg px-1.5 py-0.5">
+                    <span className="text-black text-[7px] font-black uppercase tracking-wide">Host</span>
+                  </div>
+                )}
+              </div>
+
+              {/* name + email */}
+              <div className="flex-1 min-w-0 pt-0.5">
+                <h1 className="text-white font-black italic uppercase text-[22px] tracking-tighter leading-tight truncate">
+                  {firstName}
+                </h1>
+                <p className="text-zinc-500 text-[10px] font-bold truncate mt-0.5">{user?.email}</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <div className="flex">
+                    {[1,2,3,4,5].map(i => (
+                      <span key={i} className={`text-[10px] ${i <= Math.round(profile.rating) ? 'text-emerald-400' : 'text-zinc-700'}`}>â˜…</span>
+                    ))}
+                  </div>
+                  <span className="text-zinc-500 text-[9px] font-bold">{profile.rating.toFixed(1)}</span>
+                  <span className="text-zinc-700 text-[9px]">Â·</span>
+                  <span className="text-zinc-600 text-[9px] font-bold">Since {memberSince}</span>
+                </div>
+              </div>
+
+              {/* logout */}
+              <button
+                onClick={async () => { await logout(); window.location.href = '/login'; }}
+                className="flex-shrink-0 mt-0.5 p-2 rounded-xl border border-zinc-800 text-zinc-600 hover:text-white hover:border-zinc-700 transition-colors"
+                title="Logout"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* divider */}
+            <div className="h-px bg-zinc-800/80 mb-4" />
+
+            {/* stats row */}
+            <div className="grid grid-cols-4 gap-2">
+              <StatPill value={sessions.length} label="Sessions" />
+              <div className="w-px bg-zinc-800 self-stretch mx-auto" />
+              <StatPill value={`â‚¹${totalEarned}`} label="Earned" accent />
+              <div className="w-px bg-zinc-800 self-stretch mx-auto" />
+              <StatPill value={`â‚¹${totalSpent}`} label="Spent" />
+              <div className="w-px bg-zinc-800 self-stretch mx-auto" />
+              <StatPill value={userCars.length || 0} label="Vehicles" />
+            </div>
+          </div>
+        </div>
+
+        {/* â”€â”€ TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <div className="grid grid-cols-4 gap-1 mb-5 bg-zinc-900/60 p-1 rounded-2xl border border-zinc-800/60">
+          {([
+            ['profile',  'Profile'],
+            ['garage',   'Garage'],
+            ['sessions', 'History'],
+            ['host',     'Host'],
+          ] as [Tab, string][]).map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all ${
+                tab === t ? 'bg-emerald-500 text-black shadow-sm' : 'text-zinc-600 hover:text-zinc-300'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            PROFILE TAB
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {tab === 'profile' && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-400">
+
+            {/* Personal Info */}
+            <Section
+              title="Personal Info"
+              action={editMode
+                ? undefined
+                : { label: 'Edit', onClick: () => setEditMode(true) }}
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <ProfileField label="Full Name" value={profile.full_name}
+                    onChange={editMode ? v => setProfile(p => ({ ...p, full_name: v })) : undefined}
+                    placeholder="Shivam Azad" readOnly={!editMode} />
+                  <ProfileField label="City" value={profile.city}
+                    onChange={editMode ? v => setProfile(p => ({ ...p, city: v })) : undefined}
+                    placeholder="Mohali" readOnly={!editMode} />
+                </div>
+                <ProfileField label="Mobile Number" value={profile.mobile_number}
+                  onChange={editMode ? v => setProfile(p => ({ ...p, mobile_number: v })) : undefined}
+                  placeholder="9876543210" type="tel" prefix="+91" readOnly={!editMode} />
+                <ProfileField label="UPI ID" value={profile.upi_id}
+                  onChange={editMode ? v => setProfile(p => ({ ...p, upi_id: v })) : undefined}
+                  placeholder="name@upi" readOnly={!editMode} />
+              </div>
+            </Section>
+
+            {/* Account Info â€” always read-only */}
+            <Section title="Account">
+              <div className="space-y-3">
+                {[
+                  { label: 'Email',        value: user?.email || 'â€”',             mono: false },
+                  { label: 'Member Since', value: memberSince,                    mono: false },
+                  { label: 'User ID',      value: user?.id?.slice(0, 16) + 'â€¦' || 'â€”', mono: true  },
+                ].map(({ label, value, mono }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.18em]">{label}</span>
+                    <span className={`text-white text-[11px] font-bold truncate max-w-[55%] text-right ${mono ? 'font-mono text-zinc-500 text-[10px]' : ''}`}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            {/* Save / Cancel only in edit mode */}
+            {editMode && (
+              <div className="flex gap-2">
+                <button onClick={() => setEditMode(false)}
+                  className="flex-1 py-4 bg-zinc-900 border border-zinc-800 text-zinc-500 font-black uppercase text-[10px] tracking-widest rounded-2xl">
+                  Cancel
+                </button>
+                <button onClick={saveProfile} disabled={saving}
+                  className="flex-[2] py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save Changes â†’'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            GARAGE TAB
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {tab === 'garage' && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-400">
+            {userCars.length === 0 ? (
+              <div className="py-16 border border-dashed border-zinc-800 rounded-3xl text-center">
+                <div className="w-10 h-10 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl">ðŸš—</div>
+                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-widest mb-3">No vehicles yet</p>
+                <button onClick={() => setShowAddCar(true)}
+                  className="text-emerald-500 text-[10px] font-black uppercase tracking-widest hover:text-emerald-400 transition-colors">
+                  + Add Your EV
+                </button>
+              </div>
+            ) : (
+              userCars.map((car: any) => {
+                const isActive = selectedCar === car.id;
+                return (
+                  <div key={car.instanceId || car.id} onClick={() => setSelectedCar(car.id)}
+                    className={`p-5 rounded-[24px] border cursor-pointer transition-all ${
+                      isActive ? 'bg-emerald-500/8 border-emerald-500/30' : 'bg-zinc-900/70 border-zinc-800/80 hover:border-zinc-700'
+                    }`}>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${isActive ? 'text-emerald-500' : 'text-zinc-600'}`}>
+                          {car.brand}
+                        </p>
+                        <h3 className="text-white font-black italic uppercase text-base tracking-tight">{car.name}</h3>
+                        <div className="flex gap-1.5 mt-2">
+                          {[car.charger, car.battery].map((tag: string) => tag && (
+                            <span key={tag} className="bg-zinc-800 text-zinc-500 text-[8px] font-black uppercase px-2 py-1 rounded-lg">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                        isActive ? 'border-emerald-500 bg-emerald-500' : 'border-zinc-700'
+                      }`}>
+                        {isActive && <div className="w-2.5 h-2.5 bg-black rounded-full" />}
+                      </div>
+                    </div>
+                    {isActive && (
+                      <div className="mt-3 pt-3 border-t border-emerald-500/15">
+                        <span className="text-emerald-500 text-[8px] font-black uppercase tracking-widest">â— Active Vehicle</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+            <button onClick={() => setShowAddCar(true)}
+              className="w-full py-4 border border-dashed border-zinc-800 rounded-2xl text-zinc-600 text-[10px] font-black uppercase tracking-widest hover:border-emerald-500/30 hover:text-emerald-500 transition-all">
+              + Add Another Vehicle
+            </button>
+          </div>
+        )}
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            HISTORY TAB
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {tab === 'sessions' && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-400">
+
+            {/* summary cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'As Driver', value: sessions.filter(s => s.type === 'driver').length, sub: `â‚¹${totalSpent} spent`,  color: 'text-white' },
+                { label: 'As Host',   value: sessions.filter(s => s.type === 'host').length,   sub: `â‚¹${totalEarned} earned`, color: 'text-emerald-400' },
+              ].map(({ label, value, sub, color }) => (
+                <div key={label} className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4">
+                  <p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest mb-1">{label}</p>
+                  <p className={`text-2xl font-black italic ${color}`}>{value}</p>
+                  <p className="text-zinc-600 text-[9px] font-bold mt-0.5">{sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* session rows */}
+            {sessions.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-widest">No sessions yet</p>
+              </div>
+            ) : sessions.map(s => (
+              <div key={s.id} className="bg-zinc-900/70 border border-zinc-800/80 rounded-[22px] p-4 flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${
+                  s.type === 'host' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-400'
+                }`}>
+                  {s.type === 'host' ? 'âŒ‚' : 'âš¡'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-[11px] font-black truncate">{s.station_name}</p>
+                  <p className="text-zinc-600 text-[9px] font-bold mt-0.5">{s.kwh} kWh Â· {s.date}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`font-black text-sm ${s.type === 'host' ? 'text-emerald-400' : 'text-white'}`}>
+                    {s.type === 'host' ? '+' : 'âˆ’'}â‚¹{s.cost}
+                  </p>
+                  <p className="text-zinc-700 text-[8px] font-bold uppercase mt-0.5">{s.type}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            HOST TAB
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {tab === 'host' && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-400">
+
+            {/* host toggle */}
+            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-3xl p-5 flex items-center justify-between">
+              <div>
+                <p className="text-white font-black uppercase tracking-tight">Host Mode</p>
+                <p className="text-zinc-600 text-[9px] font-bold mt-0.5">Share your charger and earn â‚¹</p>
+              </div>
+              <button
+                onClick={() => setProfile(p => ({ ...p, is_host: !p.is_host }))}
+                className={`relative w-12 h-6 rounded-full transition-all duration-300 flex-shrink-0 ${profile.is_host ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ${profile.is_host ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+            {profile.is_host && (
+              <>
+                <Section title="KYC Details">
+                  <p className="text-zinc-600 text-[9px] font-bold mb-4 leading-relaxed">
+                    Required to receive payouts. Encrypted and stored securely.
+                  </p>
+                  <div className="space-y-4">
+                    {[
+                      { label: "Driver's License No.", key: 'dl_number',    placeholder: 'HR-0120110012345', type: 'text',     max: 50 },
+                      { label: 'Aadhaar Last 4 Digits', key: 'aadhar_last4', placeholder: 'â€¢â€¢â€¢â€¢',            type: 'password', max: 4  },
+                    ].map(({ label, key, placeholder, type, max }) => (
+                      <div key={key}>
+                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.18em] block mb-1.5">{label}</label>
+                        <input type={type} value={(profile as any)[key]}
+                          onChange={e => setProfile(p => ({ ...p, [key]: e.target.value.slice(0, max) }))}
+                          placeholder={placeholder}
+                          className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-700" />
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+
+                <Section title="Payout Details">
+                  <div className="space-y-4">
+                    {[
+                      { label: 'UPI ID',              key: 'host_upi',          placeholder: 'name@upi'         },
+                      { label: 'Bank Account (opt.)', key: 'host_bank_account', placeholder: 'XXXXX1234 Â· IFSC' },
+                    ].map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.18em] block mb-1.5">{label}</label>
+                        <input value={(profile as any)[key]}
+                          onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))}
+                          placeholder={placeholder}
+                          className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2.5 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-700" />
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+
+                <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-2xl p-4">
+                  <p className="text-emerald-500 text-[9px] font-black uppercase tracking-widest mb-2">Host Agreement</p>
+                  <p className="text-zinc-500 text-[9px] font-bold leading-relaxed">
+                    Platform fee: 15% per session. Payouts every Monday. Min. payout â‚¹100. By saving you agree to ChargeShare's Terms of Service.
+                  </p>
+                </div>
+              </>
+            )}
+
+            <button onClick={saveProfile} disabled={saving}
+              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save & Continue â†’'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
+        <Link href="/"        className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‹</span><span className="text-[9px] font-bold uppercase">Home</span></Link>
+        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—Ž</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
+        <Link href="/host"    className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‡</span><span className="text-[9px] font-bold uppercase">Host</span></Link>
+        <Link href="/wallet"  className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—</span><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
+        <Link href="/profile" className="flex flex-col items-center text-emerald-400 gap-1">
+          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1" />
+          <span className="text-[9px] font-bold uppercase">Profile</span>
+        </Link>
+      </nav>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\vehicle-details\page.tsx =====
+'use client';
+
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useVehicle } from '@/context/VehicleContext';
+
+// 1. Comprehensive Data Object for all cars
+const CAR_DATA: Record<string, any> = {
+  'nexon': {
+    name: 'Tata Nexon.ev',
+    edition: 'Empowered+ LR',
+    image: 'https://ev.tatamotors.com/images/nexon-ev/nexon-ev-exterior.png',
+    health: '98%', battery: '45 kWh', range: '310 km', currentCharge: 82, estimatedKm: 245, temp: '32Â°C', cycles: '142'
+  },
+  'tiago': {
+    name: 'Tata Tiago.ev',
+    edition: 'XZ+ Tech Lux',
+    image: 'https://ev.tatamotors.com/images/tiago-ev/tiago-ev-exterior.png',
+    health: '96%', battery: '24 kWh', range: '250 km', currentCharge: 65, estimatedKm: 162, temp: '30Â°C', cycles: '89'
+  },
+  'punch': {
+    name: 'Tata Punch.ev',
+    edition: 'Empowered+ S',
+    image: 'https://ev.tatamotors.com/images/punch-ev/punch-ev-exterior.png',
+    health: '99%', battery: '35 kWh', range: '365 km', currentCharge: 90, estimatedKm: 328, temp: '29Â°C', cycles: '45'
+  },
+  'curvv': {
+    name: 'Tata Curvv.ev',
+    edition: 'Empowered+ A',
+    image: 'https://ev.tatamotors.com/images/curvv-ev/curvv-ev-exterior.png',
+    health: '100%', battery: '55 kWh', range: '585 km', currentCharge: 95, estimatedKm: 550, temp: '31Â°C', cycles: '12'
+  },
+  'windsor': {
+    name: 'MG Windsor EV',
+    edition: 'Essence',
+    image: 'https://www.mgmotor.co.in/content/dam/mgmotor/india/master/windsor-ev/exterior.png',
+    health: '97%', battery: '38 kWh', range: '331 km', currentCharge: 70, estimatedKm: 232, temp: '33Â°C', cycles: '67'
+  }
+};
+
+export default function VehiclePage() {
+  const router = useRouter();
+  const { selectedCar, setSelectedCar } = useVehicle(); // Using the context we set up in Layout
+
+  // Fallback to nexon if context isn't ready or key is missing
+  const carKey = CAR_DATA[selectedCar] ? selectedCar : 'nexon';
+  const car = CAR_DATA[carKey];
+
+  return (
+    <main className="min-h-screen bg-black text-white p-6 pb-40 font-sans overflow-x-hidden">
+      
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-8 pt-4">
+        <button onClick={() => router.back()} className="w-10 h-10 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-zinc-400">
+          â†
+        </button>
+        <h1 className="text-xl font-black italic uppercase tracking-tighter italic">Your Garage</h1>
+      </div>
+
+      {/* ðŸŽï¸ HORIZONTAL CAR SELECTOR */}
+      <div className="flex gap-4 overflow-x-auto pb-8 no-scrollbar">
+        {Object.entries(CAR_DATA).map(([key, data]) => (
+          <button 
+            key={key}
+            onClick={() => setSelectedCar(key)}
+            className={`flex-shrink-0 w-28 p-3 rounded-[24px] border-2 transition-all duration-300 ${
+              selectedCar === key 
+                ? 'border-emerald-500 bg-emerald-500/10 scale-105' 
+                : 'border-zinc-800 bg-zinc-900/50 opacity-60'
+            }`}
+          >
+            <img src={data.image} alt={data.name} className="w-full h-12 object-contain mb-2" />
+            <p className="text-[7px] font-black uppercase text-center tracking-tighter">{data.name}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* ðŸ–¼ï¸ DYNAMIC HERO CARD */}
+      <div className="bg-gradient-to-b from-zinc-800/40 to-zinc-900 border border-zinc-800 rounded-[40px] p-8 mb-8 text-center relative overflow-hidden shadow-2xl">
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10 blur-[80px] rounded-full"></div>
+        
+        <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2 animate-pulse">Connected Live</p>
+        <h2 className="text-3xl font-black italic uppercase mb-1">{car.name}</h2>
+        <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">{car.edition}</p>
+        
+        <div className="my-10 relative flex justify-center items-center h-44">
+            <div className="absolute w-48 h-12 bg-emerald-500/10 blur-3xl rounded-full bottom-4"></div>
+            <img 
+              src={car.image} 
+              alt={car.name}
+              className="w-72 object-contain drop-shadow-[0_20px_40px_rgba(16,185,129,0.25)] transform transition-all duration-700"
+            />
+        </div>
+
+        {/* Range Bar */}
+        <div className="mb-8">
+          <div className="flex justify-between items-end mb-3 px-2">
+            <span className="text-5xl font-black italic">{car.currentCharge}<span className="text-xl text-zinc-500">%</span></span>
+            <span className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-1">~{car.estimatedKm} KM Range</span>
+          </div>
+          <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-1000 ease-out" 
+              style={{ width: `${car.currentCharge}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Status Row */}
+        <div className="grid grid-cols-3 bg-black/40 py-5 rounded-3xl border border-white/5 backdrop-blur-md">
+            <div className="text-center">
+                <p className="text-[9px] text-zinc-500 uppercase font-black mb-1">Health</p>
+                <p className="text-sm font-black text-emerald-400 italic">{car.health}</p>
+            </div>
+            <div className="border-x border-zinc-800/50 text-center">
+                <p className="text-[9px] text-zinc-500 uppercase font-black mb-1">Cycles</p>
+                <p className="text-sm font-black text-white italic">{car.cycles}</p>
+            </div>
+            <div className="text-center">
+                <p className="text-[9px] text-zinc-500 uppercase font-black mb-1">Temp</p>
+                <p className="text-sm font-black text-white italic">{car.temp}</p>
+            </div>
+        </div>
+      </div>
+
+      {/* Technical Specs List */}
+      <div className="space-y-3 mb-10">
+        {[
+          { label: 'Battery Capacity', val: car.battery },
+          { label: 'Real-World Range', val: car.range },
+          { label: 'Charging Standard', val: 'CCS 2' }
+        ].map((s, i) => (
+          <div key={i} className="bg-zinc-900/40 border border-zinc-800/50 p-5 rounded-2xl flex justify-between items-center">
+            <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">{s.label}</span>
+            <span className="text-sm font-black uppercase italic">{s.val}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Global Navigation */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-[#121212]/90 backdrop-blur-xl border border-zinc-800/50 rounded-full flex items-center justify-around px-6 z-50">
+        <Link href="/" className="text-zinc-500 flex flex-col items-center gap-1">
+          <span className="text-lg">â—“</span>
+          <span className="text-[8px] font-bold uppercase tracking-tighter">Home</span>
+        </Link>
+        <Link href="/host" className="text-zinc-500 flex flex-col items-center gap-1">
+          <span className="text-lg">â—‡</span>
+          <span className="text-[8px] font-bold uppercase tracking-tighter">Host Mode</span>
+        </Link>
+        <Link href="/wallet" className="text-zinc-500 flex flex-col items-center gap-1">
+          <span className="text-lg">â—</span>
+          <span className="text-[8px] font-bold uppercase tracking-tighter">Wallet</span>
+        </Link>
+        <Link href="/profile" className="text-zinc-500 flex flex-col items-center gap-1">
+          <span className="text-lg">â—‹</span>
+          <span className="text-[8px] font-bold uppercase tracking-tighter">Profile</span>
+        </Link>
+      </nav>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\wallet\page.tsx =====
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
+import { createClient } from '@/utils/supabase/client';
+
+type Tab = 'overview' | 'topup' | 'history';
+
+interface WalletData {
+  id: string;
+  balance: number;
+  held: number;
+}
+
+interface Transaction {
+  id: string;
+  type: 'charge' | 'earn' | 'topup' | 'payout' | 'hold' | 'release';
+  amount: number;
+  description: string;
+  created_at: string;
+}
+
+// â”€â”€â”€ FAKE STRIPE PAYMENT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function FakeStripeModal({ amount, onSuccess, onClose }: { amount: number; onSuccess: () => void; onClose: () => void }) {
+  const [step, setStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [card, setCard] = useState({ number: '', expiry: '', cvv: '', name: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const formatCard = (val: string) => val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  const formatExpiry = (val: string) => {
+    const d = val.replace(/\D/g, '').slice(0, 4);
+    return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (card.number.replace(/\s/g, '').length < 16) e.number = 'Invalid card number';
+    if (card.expiry.length < 5) e.expiry = 'Invalid expiry';
+    if (card.cvv.length < 3) e.cvv = 'Invalid CVV';
+    if (!card.name.trim()) e.name = 'Name required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handlePay = () => {
+    if (!validate()) return;
+    setStep('processing');
+    setTimeout(() => { setStep('success'); setTimeout(onSuccess, 1200); }, 2800);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-5">
+      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
+        <div className="bg-[#635BFF] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center">
+              <span className="text-[#635BFF] font-black text-xs">S</span>
+            </div>
+            <span className="text-white font-bold text-sm tracking-wide">Stripe</span>
+            <span className="text-white/50 text-[10px] font-bold ml-1">Â· Secure Checkout</span>
+          </div>
+          <span className="text-white font-black text-lg">â‚¹{amount.toFixed(2)}</span>
+        </div>
+        <div className="p-6">
+          {step === 'form' && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Card Number</label>
+                <input value={card.number} onChange={e => setCard(c => ({ ...c, number: formatCard(e.target.value) }))}
+                  placeholder="4242 4242 4242 4242"
+                  className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.number ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                {errors.number && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.number}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Expiry</label>
+                  <input value={card.expiry} onChange={e => setCard(c => ({ ...c, expiry: formatExpiry(e.target.value) }))}
+                    placeholder="MM/YY"
+                    className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.expiry ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                  {errors.expiry && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.expiry}</p>}
+                </div>
+                <div>
+                  <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">CVV</label>
+                  <input value={card.cvv} onChange={e => setCard(c => ({ ...c, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                    placeholder="â€¢â€¢â€¢" type="password"
+                    className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 ${errors.cvv ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                  {errors.cvv && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.cvv}</p>}
+                </div>
+              </div>
+              <div>
+                <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Name on Card</label>
+                <input value={card.name} onChange={e => setCard(c => ({ ...c, name: e.target.value }))}
+                  placeholder="SHIVAM AZAD"
+                  className={`w-full bg-zinc-800 border rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none placeholder:text-zinc-600 uppercase ${errors.name ? 'border-red-500' : 'border-zinc-700 focus:border-[#635BFF]'}`} />
+                {errors.name && <p className="text-red-400 text-[8px] font-bold mt-1">{errors.name}</p>}
+              </div>
+              <div className="bg-zinc-800/50 p-3 rounded-xl flex items-center gap-2 border border-zinc-700">
+                <span className="text-emerald-400 text-xs">ðŸ”’</span>
+                <p className="text-zinc-500 text-[8px] font-bold">256-bit SSL encryption Â· PCI DSS compliant</p>
+              </div>
+              <button onClick={handlePay} className="w-full py-4 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all shadow-[0_0_20px_rgba(99,91,255,0.3)]">
+                Pay â‚¹{amount.toFixed(2)}
+              </button>
+              <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+            </div>
+          )}
+          {step === 'processing' && (
+            <div className="py-10 text-center">
+              <div className="w-16 h-16 border-4 border-[#635BFF]/20 border-t-[#635BFF] rounded-full animate-spin mx-auto mb-6" />
+              <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Authorising Payment...</p>
+              <p className="text-zinc-600 text-[9px] font-bold mt-2">Please do not close this window</p>
+            </div>
+          )}
+          {step === 'success' && (
+            <div className="py-8 text-center animate-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black shadow-[0_0_40px_rgba(16,185,129,0.3)]">âœ“</div>
+              <h3 className="text-white font-black italic uppercase text-xl tracking-tighter">Payment Successful</h3>
+              <p className="text-zinc-500 text-[9px] font-bold mt-2 uppercase tracking-widest">â‚¹{amount.toFixed(2)} added to wallet</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ PAYOUT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function PayoutModal({ amount, onSuccess, onClose }: { amount: number; onSuccess: () => void; onClose: () => void }) {
+  const [step, setStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [upi, setUpi] = useState('');
+
+  const handlePayout = () => {
+    if (!upi.includes('@')) return;
+    setStep('processing');
+    setTimeout(() => { setStep('success'); setTimeout(onSuccess, 1200); }, 2500);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex items-center justify-center p-5">
+      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] p-6 shadow-2xl">
+        {step === 'form' && (
+          <div className="space-y-5 animate-in fade-in duration-300">
+            <div className="text-center mb-2">
+              <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Withdraw Earnings</p>
+              <p className="text-4xl font-black text-emerald-400 italic mt-2">â‚¹{amount.toFixed(0)}</p>
+            </div>
+            <div>
+              <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">UPI ID</label>
+              <input value={upi} onChange={e => setUpi(e.target.value)} placeholder="yourname@upi"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm font-bold focus:outline-none focus:border-emerald-500/50 placeholder:text-zinc-600" />
+            </div>
+            <p className="text-zinc-600 text-[8px] font-bold text-center">Funds arrive in 1-2 business days Â· Minimum â‚¹100</p>
+            <button onClick={handlePayout} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
+              Withdraw to UPI â†’
+            </button>
+            <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+          </div>
+        )}
+        {step === 'processing' && (
+          <div className="py-10 text-center">
+            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Initiating Transfer...</p>
+          </div>
+        )}
+        {step === 'success' && (
+          <div className="py-8 text-center animate-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-black">â‚¹</div>
+            <h3 className="text-white font-black italic uppercase text-xl">Transfer Initiated</h3>
+            <p className="text-zinc-500 text-[9px] font-bold mt-2 uppercase tracking-widest">Arrives in 1â€“2 business days</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ MAIN WALLET PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export default function WalletPage() {
+  const { user } = useAuth();
+  // Single stable client ref â€” never re-created on re-renders
+  const supabase = useRef(createClient()).current;
+
+  const [tab, setTab] = useState<Tab>('overview');
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showStripe, setShowStripe] = useState(false);
+  const [showPayout, setShowPayout] = useState(false);
+  const [topupAmount, setTopupAmount] = useState(500);
+  const [loading, setLoading] = useState(true);
+
+  // â”€â”€ Plain async fetch â€” reads fresh from DB every call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const fetchWallet = async (uid: string) => {
+    setLoading(true);
+
+    let { data: walletData, error } = await supabase
+      .from('wallets')
+      .select('id, balance, held')
+      .eq('user_id', uid)
+      .single();
+
+    // Auto-create wallet row if missing
+    if (error && error.code === 'PGRST116') {
+      const { data: created } = await supabase
+        .from('wallets')
+        .insert({ user_id: uid, balance: 0, held: 0 })
+        .select('id, balance, held')
+        .single();
+      walletData = created;
+    }
+
+    if (walletData) setWallet(walletData as WalletData);
+
+    const { data: txData } = await supabase
+      .from('wallet_transactions')
+      .select('id, type, amount, description, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (txData) setTransactions(txData as Transaction[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (user?.id) fetchWallet(user.id);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // â”€â”€ Top-up: reads fresh balance from DB then updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleTopupSuccess = async () => {
+    if (!user?.id) return;
+    setShowStripe(false);
+
+    // Always read current balance fresh â€” never use stale state
+    const { data: fresh } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+
+    const newBalance = (fresh?.balance ?? 0) + topupAmount;
+
+    await supabase
+      .from('wallets')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id);
+
+    await supabase.from('wallet_transactions').insert({
+      user_id: user.id,
+      type: 'topup',
+      amount: topupAmount,
+      description: `Wallet top-up via Stripe`,
+    });
+
+    // Re-fetch everything so UI reflects new balance
+    await fetchWallet(user.id);
+    setTab('history');
+  };
+
+  // â”€â”€ Payout: zero out balance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handlePayoutSuccess = async () => {
+    if (!user?.id || !wallet) return;
+    setShowPayout(false);
+
+    const payoutAmt = wallet.balance;
+
+    await supabase
+      .from('wallets')
+      .update({ balance: 0, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id);
+
+    await supabase.from('wallet_transactions').insert({
+      user_id: user.id,
+      type: 'payout',
+      amount: -payoutAmt,
+      description: 'Withdrawal to UPI',
+    });
+
+    await fetchWallet(user.id);
+  };
+
+  // â”€â”€ Derived values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const available = wallet ? Math.max(0, wallet.balance - wallet.held) : 0;
+  const held = wallet?.held ?? 0;
+  const balance = wallet?.balance ?? 0;
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthTx = transactions.filter(tx => tx.created_at >= monthStart);
+  const monthPaid = monthTx.filter(t => t.type === 'charge').reduce((s, t) => s + Math.abs(t.amount), 0);
+  const monthEarned = monthTx.filter(t => t.type === 'earn').reduce((s, t) => s + t.amount, 0);
+  const monthSessions = monthTx.filter(t => t.type === 'charge').length;
+  const monthHostSessions = monthTx.filter(t => t.type === 'earn').length;
+
+  const txIcon = (type: Transaction['type']) =>
+    ({ charge: 'âš¡', earn: 'ðŸ’°', topup: 'âž•', payout: 'ðŸ¦', hold: 'ðŸ”’', release: 'ðŸ”“' }[type]);
+  const txColor = (type: Transaction['type']) =>
+    ({ charge: 'text-white', earn: 'text-emerald-400', topup: 'text-blue-400', payout: 'text-amber-400', hold: 'text-orange-400', release: 'text-zinc-400' }[type]);
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  return (
+    <main className="min-h-screen bg-black pb-40">
+      {showStripe && (
+        <FakeStripeModal amount={topupAmount} onSuccess={handleTopupSuccess} onClose={() => setShowStripe(false)} />
+      )}
+      {showPayout && wallet && (
+        <PayoutModal amount={balance} onSuccess={handlePayoutSuccess} onClose={() => setShowPayout(false)} />
+      )}
+
+      <div className="w-full max-w-md mx-auto px-5 pt-14">
+
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Payments</p>
+            <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Wallet</h1>
+          </div>
+          <div className="text-right">
+            <p className="text-zinc-500 text-[8px] font-bold uppercase">Secured by</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <div className="w-5 h-5 bg-[#635BFF] rounded flex items-center justify-center"><span className="text-white font-black text-[8px]">S</span></div>
+              <span className="text-white font-bold text-xs">Stripe</span>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            {/* Balance cards */}
+            <div className="space-y-3 mb-8">
+              {/* Main balance card */}
+              <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-zinc-500 text-[8px] font-black uppercase tracking-widest mb-1">Available Balance</p>
+                    <p className="text-4xl font-black text-white italic">â‚¹{available.toFixed(0)}</p>
+                  </div>
+                  <button
+                    onClick={() => setTab('topup')}
+                    className="py-2 px-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-[8px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {held > 0 && (
+                  <div className="flex items-center justify-between py-2.5 px-3 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-400 text-xs">ðŸ”’</span>
+                      <div>
+                        <p className="text-orange-300 text-[9px] font-black uppercase tracking-wide">Pre-Auth Hold</p>
+                        <p className="text-zinc-600 text-[8px] font-bold">Released when session ends</p>
+                      </div>
+                    </div>
+                    <p className="text-orange-400 font-black text-sm italic">â‚¹{held.toFixed(0)}</p>
+                  </div>
+                )}
+                {held > 0 && (
+                  <div className="flex justify-between items-center mt-2 px-1">
+                    <p className="text-zinc-600 text-[8px] font-bold">Total balance (incl. hold)</p>
+                    <p className="text-zinc-500 text-[9px] font-black">â‚¹{balance.toFixed(0)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Host earnings card */}
+              <div className="bg-zinc-900 border border-emerald-500/20 p-5 rounded-[28px] relative overflow-hidden">
+                <div className="absolute inset-0 bg-emerald-500/3 pointer-events-none" />
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-emerald-500 text-[8px] font-black uppercase tracking-widest mb-1">Host Earnings</p>
+                    <p className="text-3xl font-black text-emerald-400 italic">â‚¹{monthEarned.toFixed(0)}</p>
+                    <p className="text-zinc-600 text-[8px] font-bold mt-1">{monthHostSessions} sessions this month</p>
+                  </div>
+                  <button
+                    onClick={() => balance > 100 ? setShowPayout(true) : undefined}
+                    className={`py-2 px-4 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
+                      balance > 100
+                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                        : 'bg-zinc-800/50 border border-zinc-700 text-zinc-600 cursor-not-allowed'
+                    }`}
+                  >
+                    {balance > 100 ? 'Withdraw' : 'Min â‚¹100'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6 bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800">
+              {(['overview', 'topup', 'history'] as Tab[]).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                    tab === t ? 'bg-emerald-500 text-black' : 'text-zinc-500 hover:text-white'
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* OVERVIEW */}
+            {tab === 'overview' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                  <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest mb-4">This Month</p>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Sessions Paid', val: `â‚¹${monthPaid.toFixed(0)}`, sub: `${monthSessions} charges` },
+                      { label: 'Host Earnings', val: `+â‚¹${monthEarned.toFixed(0)}`, sub: `${monthHostSessions} sessions` },
+                      { label: 'Net Balance', val: `${monthEarned - monthPaid >= 0 ? '+' : ''}â‚¹${(monthEarned - monthPaid).toFixed(0)}`, sub: monthEarned - monthPaid >= 0 ? 'Profit this month' : 'Net spend' },
+                    ].map((r, i) => (
+                      <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
+                        <div>
+                          <p className="text-white text-sm font-black italic uppercase">{r.label}</p>
+                          <p className="text-zinc-600 text-[8px] font-bold">{r.sub}</p>
+                        </div>
+                        <p className={`font-black text-lg italic ${r.val.startsWith('+') ? 'text-emerald-400' : 'text-white'}`}>{r.val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-[28px]">
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-zinc-500 text-[9px] font-black uppercase tracking-widest">Recent</p>
+                    <button onClick={() => setTab('history')} className="text-emerald-400 text-[8px] font-black uppercase">View All â†’</button>
+                  </div>
+                  {transactions.length === 0 ? (
+                    <p className="text-zinc-700 text-[10px] font-bold text-center py-4">No transactions yet</p>
+                  ) : (
+                    transactions.slice(0, 3).map(tx => (
+                      <div key={tx.id} className="flex justify-between items-center py-2.5 border-b border-zinc-800 last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-zinc-800 rounded-xl flex items-center justify-center text-sm">{txIcon(tx.type)}</div>
+                          <div>
+                            <p className="text-white text-[10px] font-black italic">{tx.description}</p>
+                            <p className="text-zinc-600 text-[8px] font-bold">{formatDate(tx.created_at)}</p>
+                          </div>
+                        </div>
+                        <p className={`font-black text-sm italic ${txColor(tx.type)}`}>
+                          {tx.amount > 0 ? '+' : ''}â‚¹{Math.abs(tx.amount)}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TOP UP */}
+            {tab === 'topup' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px]">
+                  <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest mb-4">Select Amount</p>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {[200, 500, 1000, 1500, 2000, 5000].map(amt => (
+                      <button key={amt} onClick={() => setTopupAmount(amt)}
+                        className={`py-3 rounded-xl text-sm font-black italic uppercase transition-all border ${
+                          topupAmount === amt
+                            ? 'bg-emerald-500 border-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                        }`}>
+                        â‚¹{amt}
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <label className="text-zinc-500 text-[8px] font-black uppercase tracking-widest block mb-1.5">Or enter amount</label>
+                    <input type="number" value={topupAmount} onChange={e => setTopupAmount(parseInt(e.target.value) || 0)} min={100}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-xl font-black italic focus:outline-none focus:border-emerald-500/50" />
+                  </div>
+                </div>
+
+                <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[28px]">
+                  <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest mb-4">Pay Via</p>
+                  <button onClick={() => setShowStripe(true)}
+                    className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 border border-[#635BFF]/30 rounded-2xl hover:border-[#635BFF]/60 transition-all group">
+                    <div className="w-10 h-10 bg-[#635BFF] rounded-xl flex items-center justify-center">
+                      <span className="text-white font-black text-sm">S</span>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-black italic uppercase">Credit / Debit Card</p>
+                      <p className="text-zinc-500 text-[8px] font-bold">Powered by Stripe Â· SSL Secured</p>
+                    </div>
+                    <span className="text-zinc-600 ml-auto group-hover:text-white transition-colors">â†’</span>
+                  </button>
+
+                  <button className="w-full flex items-center gap-4 p-4 bg-zinc-800/50 border border-zinc-700 rounded-2xl mt-3 opacity-50 cursor-not-allowed">
+                    <div className="w-10 h-10 bg-zinc-700 rounded-xl flex items-center justify-center">
+                      <span className="text-white font-black text-sm">U</span>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white text-sm font-black italic uppercase">UPI / GPay / PhonePe</p>
+                      <p className="text-zinc-500 text-[8px] font-bold">Coming soon</p>
+                    </div>
+                  </button>
+                </div>
+
+                <button onClick={() => setShowStripe(true)}
+                  className="w-full py-5 bg-[#635BFF] text-white font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all shadow-[0_0_20px_rgba(99,91,255,0.2)]">
+                  Pay â‚¹{topupAmount} via Stripe â†’
+                </button>
+              </div>
+            )}
+
+            {/* HISTORY */}
+            {tab === 'history' && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {transactions.length === 0 ? (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-[28px] p-10 text-center">
+                    <p className="text-zinc-700 text-2xl mb-3">ðŸ“­</p>
+                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest">No transactions yet</p>
+                    <p className="text-zinc-700 text-[9px] font-bold mt-1">Top up your wallet to get started</p>
+                  </div>
+                ) : (
+                  transactions.map(tx => (
+                    <div key={tx.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-[24px] flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-base flex-shrink-0 ${
+                        tx.type === 'earn' ? 'bg-emerald-500/10' :
+                        tx.type === 'topup' ? 'bg-blue-500/10' :
+                        tx.type === 'payout' ? 'bg-amber-500/10' :
+                        tx.type === 'hold' ? 'bg-orange-500/10' : 'bg-zinc-800'
+                      }`}>
+                        {txIcon(tx.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-[10px] font-black italic truncate">{tx.description}</p>
+                        <p className="text-zinc-600 text-[8px] font-bold mt-0.5">{formatDate(tx.created_at)}</p>
+                      </div>
+                      <p className={`font-black text-sm italic flex-shrink-0 ${txColor(tx.type)}`}>
+                        {tx.amount > 0 ? '+' : ''}â‚¹{Math.abs(tx.amount)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
+        <Link href="/" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‹</span><span className="text-[9px] font-bold uppercase">Home</span></Link>
+        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—Ž</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
+        <Link href="/host" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‡</span><span className="text-[9px] font-bold uppercase">Host</span></Link>
+        <Link href="/wallet" className="flex flex-col items-center text-emerald-400 gap-1"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1" /><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
+        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‡</span><span className="text-[9px] font-bold uppercase">Profile</span></Link>
+      </nav>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\app\page.tsx =====
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import BatteryCard from '@/components/ui/BatteryCard';
+import FilterChips from '@/components/ui/FilterChips';
+import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { useVehicle } from '@/context/VehicleContext';
+import { useSessionRequest } from '@/hooks/useSessionRequest';
+
+// â”€â”€â”€ DISTANCE CALC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// â”€â”€â”€ BOOKING MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Replaces the old fake OTP modal.
+// Steps: confirm details â†’ (submit) â†’ waiting for host â†’ denied/approved
+function BookingModal({
+  station,
+  userId,
+  onApproved,
+  onClose,
+}: {
+  station: any;
+  userId: string;
+  onApproved: (sessionId: string) => void;
+  onClose: () => void;
+}) {
+  const { session, loading, error, createRequest, cancelRequest } = useSessionRequest(userId);
+  const [step, setStep] = useState<'confirm' | 'waiting' | 'denied'>('confirm');
+  const [walletAvailable, setWalletAvailable] = useState<number | null>(null);
+  const supabase = createClient();
+
+  const rate = station.price_per_kwh || 11;
+  const power = station.power_kw || 7.4;
+  const timeLimitMins = 120;
+  const holdAmount = +(rate * power * (timeLimitMins / 60)).toFixed(2);
+
+  // Load wallet balance for display
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('wallets')
+      .select('balance, held')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data }) => {
+        if (data) setWalletAvailable(+(data.balance - data.held).toFixed(0));
+      });
+  }, [userId]);
+
+  // Watch for status changes from the hook
+  useEffect(() => {
+    if (!session) return;
+    if (session.status === 'approved') {
+      onApproved(session.id);
+    } else if (session.status === 'denied') {
+      setStep('denied');
+    }
+  }, [session?.status]);
+
+  const handleBook = async () => {
+    const result = await createRequest({
+      chargerId: station.id,
+      hostId: station.host_id,
+      ratePerkWh: rate,
+      powerkW: power,
+      timeLimitMins,
+    });
+    if (result) setStep('waiting');
+  };
+
+  const handleCancel = async () => {
+    if (session?.id) await cancelRequest(session.id);
+    onClose();
+  };
+
+  const insufficientBalance = walletAvailable !== null && walletAvailable < holdAmount;
+
+  return (
+    <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
+      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
+
+        {/* â”€â”€ Confirm step â”€â”€ */}
+        {step === 'confirm' && (
+          <div className="p-6 space-y-4 animate-in fade-in duration-300">
+            <div className="text-center mb-2">
+              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em]">Book Session</p>
+              <h2 className="text-white font-black italic uppercase text-xl mt-1">{station.name}</h2>
+              <p className="text-zinc-500 text-[9px] font-bold mt-0.5">{station.address || 'India'}</p>
+            </div>
+
+            {/* Session details */}
+            <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2">
+              {[
+                ['Rate', `â‚¹${rate}/kWh`],
+                ['Power', `${power} kW`],
+                ['Time Limit', `${timeLimitMins} mins`],
+                ['Plug Type', (station.plug_types || ['Type 2']).join(', ')],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between items-center">
+                  <span className="text-zinc-500 text-[9px] font-bold uppercase">{k}</span>
+                  <span className="text-white text-[10px] font-black italic">{v}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Pre-auth hold info */}
+            <div className="bg-orange-500/5 border border-orange-500/20 p-3 rounded-xl space-y-1">
+              <div className="flex justify-between items-center">
+                <p className="text-orange-300 text-[9px] font-black uppercase tracking-wide">Pre-Auth Hold</p>
+                <p className="text-orange-400 font-black text-sm">â‚¹{holdAmount}</p>
+              </div>
+              <p className="text-zinc-600 text-[8px] font-bold">
+                Held from wallet now Â· released when session ends Â· only actual usage charged
+              </p>
+            </div>
+
+            {/* Wallet balance */}
+            {walletAvailable !== null && (
+              <div className={`flex justify-between items-center px-3 py-2 rounded-xl border ${
+                insufficientBalance
+                  ? 'bg-red-500/5 border-red-500/20'
+                  : 'bg-zinc-800/30 border-zinc-700'
+              }`}>
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Your Balance</span>
+                <span className={`font-black text-sm ${insufficientBalance ? 'text-red-400' : 'text-white'}`}>
+                  â‚¹{walletAvailable}
+                </span>
+              </div>
+            )}
+
+            {insufficientBalance && (
+              <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-xl">
+                <p className="text-red-400 text-[9px] font-bold text-center">
+                  Insufficient balance. <Link href="/wallet" className="underline font-black">Top up wallet â†’</Link>
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p className="text-red-400 text-[9px] font-bold uppercase tracking-wider animate-in fade-in">
+                âš  {error}
+              </p>
+            )}
+
+            <button
+              onClick={handleBook}
+              disabled={loading || insufficientBalance}
+              className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Sending Request...' : `Request Session â†’`}
+            </button>
+            <button onClick={onClose} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+          </div>
+        )}
+
+        {/* â”€â”€ Waiting for host â”€â”€ */}
+        {step === 'waiting' && (
+          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="relative mx-auto w-20 h-20">
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+              <div className="absolute inset-3 rounded-full bg-emerald-500/10 flex items-center justify-center text-2xl">âš¡</div>
+            </div>
+            <div>
+              <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Sent</p>
+              <h2 className="text-white font-black italic uppercase text-xl">Waiting for Host</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-2">
+                The host is being notified. This usually takes under a minute.
+              </p>
+            </div>
+
+            <div className="bg-zinc-800/50 border border-zinc-700 p-4 rounded-2xl space-y-2 text-left">
+              <div className="flex justify-between">
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Station</span>
+                <span className="text-white text-[9px] font-black">{station.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 text-[9px] font-bold uppercase">Hold</span>
+                <span className="text-orange-400 text-[9px] font-black">â‚¹{holdAmount} reserved</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleCancel}
+              className="w-full py-3 text-zinc-600 font-black uppercase text-[9px] tracking-widest hover:text-white transition-colors"
+            >
+              Cancel Request
+            </button>
+          </div>
+        )}
+
+        {/* â”€â”€ Denied â”€â”€ */}
+        {step === 'denied' && (
+          <div className="p-8 text-center space-y-6 animate-in fade-in duration-300">
+            <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-3xl">âœ•</div>
+            <div>
+              <p className="text-red-400 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Request Denied</p>
+              <h2 className="text-white font-black italic uppercase text-xl">Host Declined</h2>
+              <p className="text-zinc-500 text-[10px] font-bold mt-2">
+                Your wallet hold has been released. Try another station nearby.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-4 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all"
+            >
+              Back to Stations
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ FINAL PAYMENT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function FinalPaymentModal({ totalAmount, holdAmount, sessionId, userId, onComplete }: {
+  totalAmount: number;
+  holdAmount: number;
+  sessionId: string | null;
+  userId: string | null;
+  onComplete: () => void;
+}) {
+  const supabase = createClient();
+  const [step, setStep] = useState<'bill' | 'processing' | 'feedback' | 'success'>('bill');
+  const [rating, setRating] = useState(0);
+  const restAmount = Math.max(0, totalAmount - holdAmount);
+
+  const handleSettle = async () => {
+    setStep('processing');
+    // Release hold, deduct actual cost from wallet
+    if (userId && sessionId) {
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('balance, held')
+        .eq('user_id', userId)
+        .single();
+
+      if (wallet) {
+        const newHeld = Math.max(0, wallet.held - holdAmount);
+        const newBalance = Math.max(0, wallet.balance - totalAmount);
+        await supabase
+          .from('wallets')
+          .update({ balance: newBalance, held: newHeld, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+
+        await supabase.from('wallet_transactions').insert({
+          user_id: userId,
+          type: 'charge',
+          amount: -totalAmount,
+          description: 'Session payment',
+          session_id: sessionId,
+        });
+
+        await supabase
+          .from('session_requests')
+          .update({ status: 'completed', ended_at: new Date().toISOString(), amount_charged: totalAmount })
+          .eq('id', sessionId);
+      }
+    }
+    setTimeout(() => setStep('feedback'), 1200);
+  };
+
+  const submitRating = async (score: number) => {
+    if (userId && sessionId && score > 0) {
+      // Get host_id from session
+      const { data: sess } = await supabase
+        .from('session_requests')
+        .select('host_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sess?.host_id) {
+        await supabase.from('ratings').insert({
+          session_id: sessionId,
+          from_user: userId,
+          to_user: sess.host_id,
+          score,
+        });
+        // Recalculate host rating average
+        const { data: allRatings } = await supabase
+          .from('ratings')
+          .select('score')
+          .eq('to_user', sess.host_id);
+        if (allRatings && allRatings.length > 0) {
+          const avg = allRatings.reduce((s, r) => s + r.score, 0) / allRatings.length;
+          await supabase.from('profiles').update({ rating: avg }).eq('id', sess.host_id);
+        }
+      }
+    }
+    setStep('success');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[100] flex items-center justify-center p-5">
+      <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl">
+
+        {step === 'bill' && (
+          <div className="p-6 animate-in fade-in zoom-in duration-300">
+            <h2 className="text-white font-black italic uppercase text-center mb-6 tracking-tighter text-xl">Session Complete</h2>
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                <span>Total Cost</span><span className="text-white italic">â‚¹{totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-orange-400 font-bold uppercase tracking-widest">
+                <span>Pre-Auth Hold</span><span className="italic">-â‚¹{holdAmount.toFixed(2)}</span>
+              </div>
+              <div className="h-px bg-zinc-800 my-2" />
+              <div className="flex justify-between items-center py-2">
+                <span className="text-zinc-400 text-[12px] font-black uppercase">Amount Due</span>
+                <span className="text-4xl font-black text-white italic">â‚¹{restAmount.toFixed(2)}</span>
+              </div>
+              <p className="text-zinc-600 text-[8px] font-bold text-center">Deducted from your ChargeShare wallet</p>
+            </div>
+            <button onClick={handleSettle} className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all">
+              Confirm & Pay â†’
+            </button>
+          </div>
+        )}
+
+        {step === 'processing' && (
+          <div className="py-16 text-center">
+            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6" />
+            <p className="text-white font-black italic uppercase text-xs tracking-widest animate-pulse">Processing Payment...</p>
+          </div>
+        )}
+
+        {step === 'feedback' && (
+          <div className="p-6 text-center animate-in slide-in-from-right duration-500">
+            <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Rate this session</p>
+            <h3 className="text-white text-xl font-black italic uppercase mb-5">How was it?</h3>
+            <div className="flex justify-center gap-3 mb-6">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button key={star} onClick={() => setRating(star)}
+                  className={`text-3xl transition-all ${rating >= star ? 'grayscale-0 scale-110' : 'grayscale opacity-30'}`}>âš¡</button>
+              ))}
+            </div>
+            <button onClick={() => submitRating(rating)} className="w-full py-4 bg-emerald-500 text-black font-black uppercase text-[10px] tracking-widest rounded-xl mb-2">
+              Submit Review
+            </button>
+            <button onClick={() => submitRating(0)} className="w-full py-3 text-zinc-600 font-bold uppercase text-[9px] tracking-widest hover:text-white">Skip</button>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div className="p-8 text-center animate-in zoom-in duration-500">
+            <div className="w-24 h-24 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 text-4xl font-black shadow-[0_0_40px_rgba(16,185,129,0.3)]">âœ“</div>
+            <h3 className="text-white font-black italic uppercase text-2xl tracking-tighter mb-2">All Done!</h3>
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-8">Session Closed Â· Wallet Updated</p>
+            <button onClick={onComplete} className="w-full py-5 bg-zinc-800 text-white font-black uppercase text-xs tracking-widest rounded-2xl">Back to Home</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// â”€â”€â”€ MAIN HOME PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export default function Home() {
+  const router = useRouter();
+  const supabase = createClient();
+  const { user } = useAuth();
+
+  const BATTERY_CAPACITY = 30;
+  const MAX_RANGE = 325;
+  const START_LEVEL = 21;
+  const START_RANGE = 63;
+
+  const [chargingStatus, setChargingStatus] = useState<'IDLE' | 'CHARGING' | 'PAYING' | null>(null);
+  const [liveKwh, setLiveKwh] = useState(0.0);
+  const [batteryLevel, setBatteryLevel] = useState(START_LEVEL);
+  const [range, setRange] = useState(START_RANGE);
+  const [stationName, setStationName] = useState("Sarah's Driveway");
+  const [stationRate, setStationRate] = useState(11);
+  const [stationHoldAmount, setStationHoldAmount] = useState(0);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  const [nearbyStations, setNearbyStations] = useState<any[]>([]);
+  const [filteredStations, setFilteredStations] = useState<any[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [bookingStation, setBookingStation] = useState<any | null>(null);
+  const [userName, setUserName] = useState('');
+
+  // Load user name
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata;
+    setUserName(meta?.full_name || meta?.name || user.email?.split('@')[0] || 'Driver');
+    supabase.from('profiles').select('full_name').eq('id', user.id).single()
+      .then(({ data }) => { if (data?.full_name) setUserName(data.full_name.split(' ')[0]); });
+  }, [user]);
+
+  // Init & recovery
+  useEffect(() => {
+    const savedStatus = localStorage.getItem('chargingStatus') as any;
+    const savedKwh = localStorage.getItem('liveKwh');
+    const savedBat = localStorage.getItem('batteryLevel');
+    const savedRange = localStorage.getItem('range');
+    const savedName = localStorage.getItem('currentStationName');
+    const savedRate = localStorage.getItem('currentStationRate');
+    const savedHold = localStorage.getItem('currentHoldAmount');
+    const savedSessionId = localStorage.getItem('currentSessionId');
+
+    setChargingStatus(savedStatus || 'IDLE');
+    if (savedKwh) setLiveKwh(parseFloat(savedKwh));
+    if (savedBat) setBatteryLevel(parseFloat(savedBat));
+    if (savedRange) setRange(parseFloat(savedRange));
+    if (savedName) setStationName(savedName);
+    if (savedRate) setStationRate(parseInt(savedRate));
+    if (savedHold) setStationHoldAmount(parseFloat(savedHold));
+    if (savedSessionId) setActiveSessionId(savedSessionId);
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        err => console.error('GPS:', err)
+      );
+    }
+  }, []);
+
+  // Fetch nearby
+  useEffect(() => {
+    if (!userLocation) return;
+    supabase.rpc('nearby_chargers_bbox', {
+      lat: userLocation.lat, lng: userLocation.lng, radius_km: 25,
+    }).then(({ data, error }) => {
+      if (!error && data) {
+        const withDist = data.map((c: any) => {
+          const cLat = parseFloat(c.latitude);
+          const cLng = parseFloat(c.longitude);
+          const dist = !isNaN(cLat) && !isNaN(cLng)
+            ? haversine(userLocation.lat, userLocation.lng, cLat, cLng) : 0;
+          return { ...c, distanceNum: dist, distance: dist.toFixed(1) };
+        }).sort((a: any, b: any) => a.distanceNum - b.distanceNum);
+        setNearbyStations(withDist);
+      }
+    });
+  }, [userLocation]);
+
+  // Apply filters
+  useEffect(() => {
+    let filtered = [...nearbyStations];
+    if (activeFilter === 'Fast') filtered = filtered.filter(c => (c.power_kw || 0) >= 22);
+    else if (activeFilter === 'Available') filtered = filtered.filter(c => c.is_available !== false);
+    else if (activeFilter === 'Free') filtered = filtered.filter(c => c.is_free === true || c.price_per_kwh === 0);
+    else if (activeFilter === 'Top Rated') filtered = filtered.filter(c => (c.rating || 0) >= 4.5).slice(0, 5);
+    setFilteredStations(filtered);
+  }, [nearbyStations, activeFilter]);
+
+  // Persist charging state
+  useEffect(() => {
+    if (chargingStatus) {
+      localStorage.setItem('chargingStatus', chargingStatus);
+      localStorage.setItem('liveKwh', liveKwh.toString());
+      localStorage.setItem('batteryLevel', batteryLevel.toString());
+      localStorage.setItem('range', range.toString());
+    }
+  }, [chargingStatus, liveKwh, batteryLevel, range]);
+
+  // Charging ticker
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (chargingStatus === 'CHARGING') {
+      interval = setInterval(() => {
+        setLiveKwh(prev => {
+          const next = +(prev + 0.1).toFixed(2);
+          const addedPct = (0.1 / BATTERY_CAPACITY) * 100;
+          const addedRange = (0.1 / BATTERY_CAPACITY) * MAX_RANGE;
+          setBatteryLevel(b => { const nb = b + addedPct; if (nb >= 100) { setChargingStatus('PAYING'); return 100; } return nb; });
+          setRange(r => Math.min(MAX_RANGE, r + addedRange));
+          return next;
+        });
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [chargingStatus]);
+
+  const currentTotalCost = liveKwh * stationRate;
+
+  // Called when host approves â†’ start charging
+  const handleSessionApproved = (sessionId: string) => {
+    const station = bookingStation;
+    const rate = station?.price_per_kwh || 11;
+    const hold = +(rate * (station?.power_kw || 7.4) * (120 / 60)).toFixed(2);
+    const name = station?.name || 'Unknown Station';
+
+    localStorage.setItem('currentStationRate', rate.toString());
+    localStorage.setItem('currentStationName', name);
+    localStorage.setItem('currentHoldAmount', hold.toString());
+    localStorage.setItem('currentSessionId', sessionId);
+
+    setStationRate(rate);
+    setStationName(name);
+    setStationHoldAmount(hold);
+    setActiveSessionId(sessionId);
+    setChargingStatus('CHARGING');
+    setBookingStation(null);
+  };
+
+  const resetSession = () => {
+    localStorage.clear();
+    setBatteryLevel(START_LEVEL);
+    setRange(START_RANGE);
+    setLiveKwh(0);
+    setChargingStatus('IDLE');
+    setActiveSessionId(null);
+    window.location.reload();
+  };
+
+  if (chargingStatus === null) return <div className="min-h-screen bg-black" />;
+
+  return (
+    <main className="min-h-screen bg-black flex flex-col items-center pb-40">
+
+      {/* Booking modal â€” only for logged-in users */}
+      {bookingStation && user && (
+        <BookingModal
+          station={bookingStation}
+          userId={user.id}
+          onApproved={handleSessionApproved}
+          onClose={() => setBookingStation(null)}
+        />
+      )}
+
+      {/* Guest trying to book */}
+      {bookingStation && !user && (
+        <div className="fixed inset-0 bg-black/97 backdrop-blur-xl z-[150] flex items-center justify-center p-5">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[36px] p-8 text-center space-y-5">
+            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-2xl">âš¡</div>
+            <h2 className="text-white font-black italic uppercase text-xl">Sign In to Book</h2>
+            <p className="text-zinc-500 text-[10px] font-bold">You need an account to request a charging session.</p>
+            <Link href="/login" className="block w-full py-4 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-xl active:scale-95 transition-all">
+              Sign In / Register â†’
+            </Link>
+            <button onClick={() => setBookingStation(null)} className="w-full text-zinc-600 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="w-full max-w-md px-5 pt-12">
+
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="w-10" />
+          <div className="text-center">
+            <h1 className="text-xl font-black text-white italic uppercase tracking-tighter">
+              {userName ? `Hey, ${userName.split(' ')[0]}` : 'ChargeShare'}
+            </h1>
+            <p className={`text-[10px] uppercase tracking-[0.3em] mt-1 font-bold ${chargingStatus === 'CHARGING' ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}`}>
+              â— {chargingStatus === 'CHARGING' ? 'Charging Live' : 'System Ready'}
+            </p>
+          </div>
+          <button onClick={resetSession} className="text-[10px] text-zinc-700 font-bold uppercase border border-zinc-800 px-2 py-1 rounded-md hover:text-white transition-colors">
+            Reset
+          </button>
+        </div>
+
+        <BatteryCard level={Math.floor(batteryLevel)} range={Math.floor(range)} isCharging={chargingStatus === 'CHARGING'} />
+
+        <div className="mt-8 min-h-[320px]">
+          {chargingStatus === 'IDLE' ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex justify-between items-center mb-3 px-1">
+                <h3 className="text-zinc-400 text-[10px] uppercase tracking-widest font-bold">Stations Near You</h3>
+                <span className="text-emerald-500 text-[9px] font-black uppercase">{filteredStations.length} Found</span>
+              </div>
+
+              <FilterChips activeFilter={activeFilter as any} onFilterChange={(f) => setActiveFilter(f)} />
+
+              <div className="mt-3">
+                {filteredStations.length === 0 ? (
+                  <div className="p-10 border border-dashed border-zinc-900 rounded-[32px] text-center">
+                    <p className="text-zinc-700 text-[10px] uppercase font-bold animate-pulse">
+                      {nearbyStations.length === 0 ? 'Scanning 25km radius...' : `No ${activeFilter} stations nearby`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[380px] overflow-y-auto no-scrollbar">
+                    {filteredStations.map(station => (
+                      <div key={station.id} className="bg-zinc-900/60 border border-zinc-800 p-5 rounded-[28px] flex justify-between items-center">
+                        <div className="flex-1 min-w-0 mr-3">
+                          <h3 className="text-white font-black italic uppercase text-sm tracking-tight truncate">{station.name}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-zinc-500 text-[9px] font-bold uppercase">{(station.plug_types || ['Type 2']).join(', ')}</span>
+                            {station.power_kw && <span className="text-zinc-600 text-[8px] font-bold">Â· {station.power_kw}kW</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <p className="text-emerald-400 text-sm font-black">â‚¹{station.price_per_kwh || 11}/kWh</p>
+                            <span className="text-zinc-600 text-[9px] font-black uppercase bg-zinc-800/60 px-2 py-0.5 rounded-full">
+                              {station.distance ? `${station.distance} km` : 'â€“'}
+                            </span>
+                            {station.is_available === false && (
+                              <span className="text-red-400 text-[8px] font-black uppercase">Busy</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setBookingStation(station)}
+                          disabled={station.is_available === false}
+                          className="bg-emerald-500 text-black px-5 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                        >
+                          BOOK
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // Active charging session card
+            <div className="bg-zinc-900 border border-emerald-500/30 p-7 rounded-[40px] shadow-[0_0_50px_rgba(16,185,129,0.12)] animate-in zoom-in-95">
+              <div className="flex justify-between items-center mb-7">
+                <div>
+                  <p className="text-emerald-500 text-[9px] font-black uppercase mb-1">Active Session</p>
+                  <h3 className="text-white text-xl font-black italic uppercase">{stationName}</h3>
+                  <p className="text-zinc-500 text-[10px] font-bold">RATE: â‚¹{stationRate}/kWh</p>
+                </div>
+                <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 animate-pulse border border-emerald-500/20">âš¡</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-7">
+                <div className="bg-zinc-800/50 p-5 rounded-3xl border border-white/5">
+                  <p className="text-zinc-500 text-[8px] uppercase font-black mb-1">Energy Added</p>
+                  <p className="text-2xl font-black text-white italic">{liveKwh.toFixed(1)} <span className="text-[10px]">kWh</span></p>
+                </div>
+                <div className="bg-zinc-800/50 p-5 rounded-3xl border border-white/5">
+                  <p className="text-zinc-500 text-[8px] uppercase font-black mb-1">Cost So Far</p>
+                  <p className="text-2xl font-black text-emerald-400 italic">â‚¹{currentTotalCost.toFixed(0)}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setChargingStatus('PAYING')}
+                className="w-full py-5 bg-emerald-500 text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all"
+              >
+                Stop & Pay
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button onClick={() => router.push('/explore')} className="w-full py-4 rounded-2xl bg-white text-black font-black text-xs uppercase tracking-widest mt-8 mb-4 active:scale-95 transition-all">
+          Open Map View
+        </button>
+      </div>
+
+      {chargingStatus === 'PAYING' && (
+        <FinalPaymentModal
+          totalAmount={currentTotalCost}
+          holdAmount={stationHoldAmount}
+          sessionId={activeSessionId}
+          userId={user?.id || null}
+          onComplete={resetSession}
+        />
+      )}
+
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-zinc-900/80 backdrop-blur-xl border border-zinc-800/50 rounded-3xl flex items-center justify-around z-50">
+        <Link href="/" className="flex flex-col items-center text-emerald-400 gap-1"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mb-1"></div><span className="text-[9px] font-bold uppercase">Home</span></Link>
+        <Link href="/explore" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—Ž</span><span className="text-[9px] font-bold uppercase">Explore</span></Link>
+        <Link href="/host" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‡</span><span className="text-[9px] font-bold uppercase">Host</span></Link>
+        <Link href="/wallet" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—</span><span className="text-[9px] font-bold uppercase">Wallet</span></Link>
+        <Link href="/profile" className="flex flex-col items-center text-zinc-500 gap-1 hover:text-white transition-colors"><span className="text-lg">â—‹</span><span className="text-[9px] font-bold uppercase">Profile</span></Link>
+      </nav>
+    </main>
+  );
+}
+
+===== E:\charge-share\src\components\SessionSummary.tsx =====
+'use client';
+
+/**
+ * SessionSummary Component
+ * Displays the final breakdown of charges after an EV charging session.
+ */
+export default function SessionSummary({ 
+  totalKwh, 
+  pricePerKwh, 
+  bookingFee = 11 
+}: { 
+  totalKwh: number, 
+  pricePerKwh: number, 
+  bookingFee?: number 
+}) {
+  // Calculate the financial breakdown
+  const totalAmount = totalKwh * pricePerKwh;
+  const restAmount = totalAmount - bookingFee;
+
+  return (
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+      <div className="bg-zinc-900 p-8 rounded-[40px] w-full max-w-sm border border-zinc-800 shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <span className="text-2xl">âš¡</span>
+        </div>
+        
+        <h2 className="text-white font-black italic uppercase text-center text-xl mb-8 tracking-tight">
+          Session Summary
+        </h2>
+        
+        <div className="space-y-4 mb-8">
+          {/* Energy Breakdown */}
+          <div className="flex justify-between items-center">
+            <span className="text-zinc-500 uppercase font-bold text-[10px] tracking-widest">Energy Added</span>
+            <span className="text-white font-black italic">{totalKwh.toFixed(1)} kWh</span>
+          </div>
+          
+          {/* Financial Breakdown */}
+          <div className="flex justify-between items-center border-t border-zinc-800 pt-4">
+            <span className="text-zinc-500 uppercase font-bold text-[10px] tracking-widest">Total Session Cost</span>
+            <span className="text-white font-black italic">â‚¹{totalAmount.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-emerald-400">
+            <span className="uppercase font-bold text-[10px] tracking-widest">Paid at Booking</span>
+            <span className="font-black italic">-â‚¹{bookingFee.toFixed(2)}</span>
+          </div>
+
+          {/* Final Settlement Amount */}
+          <div className="flex justify-between items-center bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/20 mt-6">
+            <span className="text-emerald-500 uppercase font-black text-[11px] tracking-tighter">Amount to Pay</span>
+            <span className="text-3xl font-black text-emerald-400 italic">â‚¹{restAmount.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <button 
+          onClick={() => window.location.reload()} // For demo: resets the flow
+          className="w-full py-5 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-2xl hover:bg-zinc-200 transition-colors shadow-lg shadow-white/5"
+        >
+          Settle Payment
+        </button>
+      </div>
+    </div>
+  );
+}
+
+===== E:\charge-share\src\hooks\useSessionRequest.ts =====
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import { createClient } from '@/utils/supabase/client';
+
+export type SessionStatus =
+  | 'pending'
+  | 'approved'
+  | 'denied'
+  | 'active'
+  | 'completed'
+  | 'cancelled';
+
+export interface SessionRequest {
+  id: string;
+  charger_id: number;
+  driver_id: string;
+  host_id: string;
+  status: SessionStatus;
+  requested_at: string;
+  approved_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  kwh_delivered: number;
+  amount_charged: number;
+  hold_amount: number;
+  rate_per_kwh: number;
+  time_limit_mins: number;
+}
+
+interface UseSessionRequestReturn {
+  session: SessionRequest | null;
+  loading: boolean;
+  error: string | null;
+  createRequest: (params: {
+    chargerId: number;
+    hostId: string;
+    ratePerkWh: number;
+    powerkW: number;
+    timeLimitMins?: number;
+  }) => Promise<{ id: string } | null>;
+  cancelRequest: (sessionId: string) => Promise<void>;
+}
+
+export function useSessionRequest(userId: string | null): UseSessionRequestReturn {
+  const supabase = createClient();
+  const [session, setSession] = useState<SessionRequest | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // â”€â”€ Subscribe to realtime status changes on active session â”€â”€
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const channel = supabase
+      .channel(`session-${session.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'session_requests',
+          filter: `id=eq.${session.id}`,
+        },
+        (payload) => {
+          setSession(prev =>
+            prev ? { ...prev, ...(payload.new as SessionRequest) } : null
+          );
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id]);
+
+  // â”€â”€ Create a new session_request + wallet hold â”€â”€
+  const createRequest = useCallback(async ({
+    chargerId,
+    hostId,
+    ratePerkWh,
+    powerkW,
+    timeLimitMins = 120,
+  }: {
+    chargerId: number;
+    hostId: string;
+    ratePerkWh: number;
+    powerkW: number;
+    timeLimitMins?: number;
+  }): Promise<{ id: string } | null> => {
+    if (!userId) return null;
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Check wallet balance
+      const { data: wallet, error: walletErr } = await supabase
+        .from('wallets')
+        .select('id, balance, held')
+        .eq('user_id', userId)
+        .single();
+
+      if (walletErr || !wallet) {
+        setError('Could not load wallet. Please top up first.');
+        setLoading(false);
+        return null;
+      }
+
+      const holdAmount = +(ratePerkWh * powerkW * (timeLimitMins / 60)).toFixed(2);
+      const available = wallet.balance - wallet.held;
+
+      if (available < holdAmount) {
+        setError(`Insufficient balance. Need â‚¹${holdAmount}, available â‚¹${available.toFixed(0)}.`);
+        setLoading(false);
+        return null;
+      }
+
+      // 2. Write session_request
+      const { data: newSession, error: sessionErr } = await supabase
+        .from('session_requests')
+        .insert({
+          charger_id: chargerId,
+          driver_id: userId,
+          host_id: hostId,
+          status: 'pending',
+          rate_per_kwh: ratePerkWh,
+          hold_amount: holdAmount,
+          time_limit_mins: timeLimitMins,
+        })
+        .select('*')
+        .single();
+
+      if (sessionErr || !newSession) {
+        setError('Failed to create session. Please try again.');
+        setLoading(false);
+        return null;
+      }
+
+      // 3. Apply wallet hold (move from available into held)
+      await supabase
+        .from('wallets')
+        .update({
+          held: wallet.held + holdAmount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      // 4. Write hold transaction
+      await supabase.from('wallet_transactions').insert({
+        user_id: userId,
+        type: 'hold',
+        amount: -holdAmount,
+        description: `Pre-auth hold for session`,
+        session_id: newSession.id,
+      });
+
+      // 5. Write notification for host
+      await supabase.from('notifications').insert({
+        user_id: hostId,
+        type: 'session_request',
+        title: 'New Charging Request',
+        body: `A driver wants to charge at your station.`,
+        data: {
+          session_id: newSession.id,
+          charger_id: chargerId,
+          driver_id: userId,
+          hold_amount: holdAmount,
+          rate_per_kwh: ratePerkWh,
+        },
+        read: false,
+      });
+
+      setSession(newSession as SessionRequest);
+      setLoading(false);
+      return { id: newSession.id };
+
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong.');
+      setLoading(false);
+      return null;
+    }
+  }, [userId]);
+
+  // â”€â”€ Cancel a pending request + release hold â”€â”€
+  const cancelRequest = useCallback(async (sessionId: string) => {
+    if (!userId) return;
+
+    const { data: existing } = await supabase
+      .from('session_requests')
+      .select('hold_amount, status')
+      .eq('id', sessionId)
+      .single();
+
+    // Only cancel if still pending
+    if (!existing || existing.status !== 'pending') return;
+
+    await supabase
+      .from('session_requests')
+      .update({ status: 'cancelled' })
+      .eq('id', sessionId);
+
+    // Release the hold
+    const { data: wallet } = await supabase
+      .from('wallets')
+      .select('held')
+      .eq('user_id', userId)
+      .single();
+
+    if (wallet) {
+      await supabase
+        .from('wallets')
+        .update({
+          held: Math.max(0, wallet.held - existing.hold_amount),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      await supabase.from('wallet_transactions').insert({
+        user_id: userId,
+        type: 'release',
+        amount: existing.hold_amount,
+        description: 'Hold released â€” session cancelled',
+        session_id: sessionId,
+      });
+    }
+
+    setSession(null);
+  }, [userId]);
+
+  return { session, loading, error, createRequest, cancelRequest };
+}
+
