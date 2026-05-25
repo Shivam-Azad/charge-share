@@ -517,6 +517,10 @@ export default function WalletPage() {
           <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>◎</span>
           <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Explore</span>
         </Link>
+        <Link href="/analytics" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>o</span>
+          <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Stats</span>
+        </Link>
         <Link href="/host" className="flex flex-col items-center gap-1">
           <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>◇</span>
           <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.25)' }}>Host</span>

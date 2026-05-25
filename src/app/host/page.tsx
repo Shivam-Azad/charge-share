@@ -220,6 +220,12 @@ export default function HostPage() {
     if (!user) return;
     if (!form.name || !form.address || !form.latitude || !form.longitude || form.plug_types.length === 0) { showToast('⚠ Fill all required fields'); return; }
     setSaving(true);
+    const { data: profile } = await supabase.from('profiles').select('flagged, banned').eq('id', user.id).single();
+    if (profile?.flagged || profile?.banned) {
+      setSaving(false);
+      showToast('Account restricted. Contact support.');
+      return;
+    }
     const { data, error } = await supabase.from('chargers').insert({ host_id: user.id, owner_id: user.id, name: form.name, address: form.address, latitude: parseFloat(form.latitude), longitude: parseFloat(form.longitude), plug_types: form.plug_types, power_kw: parseFloat(form.power_kw), price_per_kwh: parseFloat(form.price_per_kwh), description: form.description, is_available: form.is_available, is_verified: false }).select().single();
     setSaving(false);
     if (!error && data) { setListings(prev => [data as HostListing, ...prev]); setForm({ name: '', address: '', latitude: '', longitude: '', plug_types: [], power_kw: '7.4', price_per_kwh: '12', description: '', is_available: true }); setTab('listings'); showToast('✓ Charger listed! Pending verification.'); }
@@ -605,7 +611,7 @@ export default function HostPage() {
       {/* Bottom Nav */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[88%] max-w-sm h-16 rounded-3xl flex items-center justify-around z-50"
         style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
-        {[{ href: '/', icon: '○', label: 'Home', active: false }, { href: '/explore', icon: '◎', label: 'Explore', active: false }, { href: '/host', icon: null, label: 'Host', active: true }, { href: '/wallet', icon: '◍', label: 'Wallet', active: false }, { href: '/profile', icon: '○', label: 'Profile', active: false }].map(({ href, icon, label, active }) => (
+        {[{ href: '/', icon: '○', label: 'Home', active: false }, { href: '/explore', icon: '◎', label: 'Explore', active: false }, { href: '/analytics', icon: 'o', label: 'Stats', active: false }, { href: '/host', icon: null, label: 'Host', active: true }, { href: '/wallet', icon: '◍', label: 'Wallet', active: false }].map(({ href, icon, label, active }) => (
           <Link key={href} href={href} className="flex flex-col items-center gap-1">
             {active ? <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#10b981' }} /> : <span className="text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>{icon}</span>}
             <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: active ? '#10b981' : 'rgba(255,255,255,0.25)' }}>{label}</span>

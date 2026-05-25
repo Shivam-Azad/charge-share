@@ -2,7 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require a real (non-guest) authenticated session
-const PROTECTED_ROUTES = ['/profile', '/host', '/wallet']
+const PROTECTED_ROUTES = ['/profile', '/host', '/wallet', '/notifications', '/analytics', '/admin']
+
+function getAdminIds() {
+  return (process.env.ADMIN_USER_IDS ?? '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean)
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -39,6 +46,15 @@ export async function middleware(request: NextRequest) {
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  if (user && pathname.startsWith('/admin')) {
+    const adminIds = getAdminIds()
+    if (!adminIds.includes(user.id)) {
+      const homeUrl = request.nextUrl.clone()
+      homeUrl.pathname = '/'
+      return NextResponse.redirect(homeUrl)
+    }
   }
 
   // If authenticated user hits /login or /onboarding → let them through

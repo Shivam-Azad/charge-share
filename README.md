@@ -1,27 +1,53 @@
-# Charge.Share ⚡🤝
+# ChargeShare
 
-Charge.Share is a community-led EV charging platform designed to democratize access to electric vehicle power. By combining real-world public data with a peer-to-peer hosting model, we empower users to find, book, and share charging points.
+ChargeShare is a community-led EV charging platform designed to democratize access to electric vehicle power. It combines real-world public charging data with a peer-to-peer hosting model so drivers can find, book, and pay for charging sessions.
 
-## 🚀 Key Features
-- **Hybrid Mapping:** Merges [Open Charge Map](https://openchargemap.org/) public data with private host listings.
-- **25km Pulse Scan:** Advanced spatial queries (PostGIS) to find compatible chargers within a 25km radius.
-- **Compatibility Filtering:** Automatically filters results based on your vehicle's plug type (Type 2, CCS, etc.).
-- **Dark Mode UI:** A sleek, high-contrast interface designed for low-light driving conditions.
+## Key Features
 
-## 🛠️ Tech Stack
-- **Frontend:** Next.js (App Router), Tailwind CSS
-- **Backend:** Supabase (PostgreSQL + PostGIS)
-- **Maps:** Leaflet.js / OpenStreetMap
-- **Data:** Open Charge Map API
+- Hybrid map discovery using Open Charge Map public data and private host listings
+- Supabase-backed booking, wallet, session, notification, and rating flows
+- Host dashboard for requests, active sessions, listings, and charger creation
+- Driver session flow with navigation, completion, payment, and ratings
+- Premium dark glass UI across the main app surfaces
 
-## 🏁 Getting Started
+## Tech Stack
+
+- Frontend: Next.js App Router, TypeScript, Tailwind CSS
+- Backend: Supabase PostgreSQL, Auth, Realtime, RPC
+- Maps: Leaflet.js and OpenStreetMap
+- Data: Open Charge Map API
+- Deployment: Vercel
+
+## Project Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for completed phases, upcoming work, environment variables, schema notes, and the current priority order.
+
+## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
-- A Supabase account with PostGIS enabled
-- An Open Charge Map API Key
+- Supabase project
+- Open Charge Map API key
 
 ### Installation
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/your-username/charge-share.git](https://github.com/your-username/charge-share.git)
+
+```bash
+git clone https://github.com/Shivam-Azad/charge-share.git
+cd charge-share
+npm install
+```
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_OCM_API_KEY=
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```

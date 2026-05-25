@@ -12,6 +12,7 @@ interface UserProfile {
   full_name: string; mobile_number: string; city: string; upi_id: string;
   is_host: boolean; host_bank_account: string; host_upi: string;
   dl_number: string; aadhar_last4: string; rating: number; total_sessions: number;
+  vehicle_reg_number: string; vehicle_verified: boolean; flagged: boolean;
 }
 
 interface Session {
@@ -39,6 +40,7 @@ export default function ProfilePage() {
     full_name: '', mobile_number: '', city: '', upi_id: '',
     is_host: false, host_bank_account: '', host_upi: '',
     dl_number: '', aadhar_last4: '', rating: 4.8, total_sessions: 0,
+    vehicle_reg_number: '', vehicle_verified: false, flagged: false,
   });
 
   const showToast = (msg: string, ok = true) => {
@@ -67,6 +69,9 @@ export default function ProfilePage() {
           aadhar_last4: data.aadhar_last4 ?? prev.aadhar_last4,
           rating: data.rating ?? prev.rating,
           total_sessions: data.total_sessions ?? prev.total_sessions,
+          vehicle_reg_number: data.vehicle_reg_number ?? prev.vehicle_reg_number,
+          vehicle_verified: data.vehicle_verified ?? prev.vehicle_verified,
+          flagged: data.flagged ?? prev.flagged,
         }));
       } else {
         const meta = user.user_metadata ?? {};
@@ -107,6 +112,8 @@ export default function ProfilePage() {
       city: profile.city, upi_id: profile.upi_id, is_host: profile.is_host,
       host_bank_account: profile.host_bank_account, host_upi: profile.host_upi,
       dl_number: profile.dl_number, aadhar_last4: profile.aadhar_last4,
+      vehicle_reg_number: profile.vehicle_reg_number || null,
+      vehicle_verified: profile.vehicle_verified,
       onboarding_complete: true, updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
     setSaving(false);
@@ -120,6 +127,31 @@ export default function ProfilePage() {
     addCar({ ...model, brand: carForm.brand });
     setShowAddCar(false);
     showToast('Vehicle added');
+  };
+
+  const verifyVehicle = async () => {
+    if (!profile.vehicle_reg_number.trim()) {
+      showToast('Add vehicle registration first', false);
+      return;
+    }
+    setSaving(true);
+    const res = await fetch('/api/verify-vehicle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vehicle_reg_number: profile.vehicle_reg_number }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) {
+      showToast(data.error || 'Verification failed', false);
+      return;
+    }
+    setProfile(p => ({
+      ...p,
+      vehicle_reg_number: data.vehicle_reg_number || p.vehicle_reg_number,
+      vehicle_verified: data.verified === true,
+    }));
+    showToast(data.verified ? 'Vehicle verified' : data.message || 'Vehicle saved for verification', data.verified === true);
   };
 
   const initials = profile.full_name
@@ -324,6 +356,35 @@ export default function ProfilePage() {
                       placeholder="name@upi" style={inputStyle} />
                   ) : (
                     <p className="text-white text-sm font-bold px-1">{profile.upi_id || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}</p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>Vehicle Registration</p>
+                    {profile.vehicle_verified && <span className="text-[8px] font-black uppercase" style={{ color: '#10b981' }}>Verified</span>}
+                  </div>
+                  {editMode ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={profile.vehicle_reg_number}
+                        onChange={e => setProfile(p => ({ ...p, vehicle_reg_number: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10), vehicle_verified: false }))}
+                        placeholder="HR26DK1234"
+                        style={{ ...inputStyle, flex: 1, fontFamily: 'monospace', letterSpacing: '0.08em' }}
+                      />
+                      <button
+                        onClick={verifyVehicle}
+                        disabled={saving}
+                        className="px-4 rounded-xl text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
+                        style={{ background: '#10b981', color: '#000' }}
+                      >
+                        Verify
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-white text-sm font-bold px-1 font-mono tracking-widest">
+                      {profile.vehicle_reg_number || <span style={{ color: 'rgba(255,255,255,0.2)' }}>-</span>}
+                    </p>
                   )}
                 </div>
               </div>
@@ -549,8 +610,8 @@ export default function ProfilePage() {
         {[
           { href: '/', icon: '○', label: 'Home', active: false },
           { href: '/explore', icon: '◎', label: 'Explore', active: false },
+          { href: '/analytics', icon: 'o', label: 'Stats', active: false },
           { href: '/host', icon: '◇', label: 'Host', active: false },
-          { href: '/wallet', icon: '◍', label: 'Wallet', active: false },
           { href: '/profile', icon: null, label: 'Profile', active: true },
         ].map(({ href, icon, label, active }) => (
           <Link key={href} href={href} className="flex flex-col items-center gap-1">

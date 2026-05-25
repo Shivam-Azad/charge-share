@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { useFCMToken } from '@/hooks/useFCMToken';
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const supabase = createClient();
+  useFCMToken(user?.id ?? null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

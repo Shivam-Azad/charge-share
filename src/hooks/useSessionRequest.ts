@@ -99,6 +99,18 @@ export function useSessionRequest(userId: string | null): UseSessionRequestRetur
     setError(null);
 
     try {
+      const { data: driverProfile } = await supabase
+        .from('profiles')
+        .select('flagged, banned')
+        .eq('id', userId)
+        .single();
+
+      if (driverProfile?.flagged || driverProfile?.banned) {
+        setError('Your account is restricted. Please contact support before booking.');
+        setLoading(false);
+        return null;
+      }
+
       // 1. Check wallet balance
       const { data: wallet, error: walletErr } = await supabase
         .from('wallets').select('id, balance, held').eq('user_id', userId).single();

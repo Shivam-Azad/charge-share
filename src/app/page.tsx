@@ -8,6 +8,7 @@ import FilterChips, { FilterType } from '@/components/ui/FilterChips';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useSessionRequest } from '@/hooks/useSessionRequest';
+import NotificationBell from '@/components/NotificationBell';
 
 const PublicDirectionsModal = dynamic<{
   station: any;
@@ -515,6 +516,7 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${chargingStatus === 'CHARGING' ? 'animate-pulse' : ''}`}
               style={{background: chargingStatus === 'CHARGING' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: chargingStatus === 'CHARGING' ? '#10b981' : 'rgba(255,255,255,0.3)', border: `1px solid ${chargingStatus === 'CHARGING' ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'}`}}>
               {chargingStatus === 'CHARGING' ? '⚡ Live' : '● Ready'}
@@ -641,6 +643,10 @@ export default function Home() {
         <Link href="/explore" className="flex flex-col items-center gap-1 group">
           <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>◎</span>
           <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Explore</span>
+        </Link>
+        <Link href="/analytics" className="flex flex-col items-center gap-1">
+          <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>o</span>
+          <span className="text-[8px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.25)'}}>Stats</span>
         </Link>
         <Link href="/host" className="flex flex-col items-center gap-1">
           <span className="text-base" style={{color:'rgba(255,255,255,0.25)'}}>◇</span>
